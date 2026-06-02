@@ -1,0 +1,1296 @@
+
+package com.ledger.ledgerworks.service;
+
+import com.ledger.ledgerworks.entity.*;
+import com.ledger.ledgerworks.repository.DeliveryChallanRepository;
+
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.*;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.awt.Color;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.List;
+
+@Service
+public class DeliveryChallanService {
+
+    @Autowired
+    private DeliveryChallanRepository repo;
+
+    @Autowired
+    private InvoiceService invoiceService;
+
+    @Autowired
+    private DocumentNumberService documentNumberService;
+
+    // ================= CREATE =================
+
+    public DeliveryChallan create(DeliveryChallan c) {
+
+        if (c.getItems() == null || c.getItems().isEmpty()) {
+
+            throw new RuntimeException("Items required");
+        }
+
+        // ================= DOCUMENT NUMBER =================
+
+        DeliveryChallan lastChallan =
+                repo.findTopByOrderByIdDesc();
+
+        String lastChallanNumber = null;
+
+        if (lastChallan != null) {
+
+            lastChallanNumber =
+                    lastChallan.getChallanNumber();
+        }
+
+        c.setChallanNumber(
+
+                documentNumberService.generateNumber(
+
+                        "DC",
+
+                        lastChallanNumber
+                )
+        );
+
+        c.setChallanDate(LocalDate.now());
+
+        c.setStatus("ACTIVE");
+
+        for (DeliveryChallanItem i : c.getItems()) {
+
+            i.setChallan(c);
+        }
+
+        calculate(c);
+
+        return repo.save(c);
+    }
+
+    // ================= UPDATE =================
+
+    public DeliveryChallan update(Long id, DeliveryChallan updated) {
+
+        DeliveryChallan existing = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Not found"));
+
+        if (!"ACTIVE".equals(existing.getStatus())) {
+
+            throw new RuntimeException("Only ACTIVE editable");
+        }
+
+        existing.setCustomerName(updated.getCustomerName());
+
+        existing.setCustomerGST(updated.getCustomerGST());
+
+        existing.setPlaceOfSupply(updated.getPlaceOfSupply());
+
+        existing.setCustomerAddress(updated.getCustomerAddress());
+
+        existing.setCustomerEmail(updated.getCustomerEmail());
+
+        existing.setCustomerPhone(updated.getCustomerPhone());
+
+        existing.setTransportName(updated.getTransportName());
+
+        existing.setVehicleNumber(updated.getVehicleNumber());
+
+        existing.setDescriptions(updated.getDescriptions());
+
+        existing.getItems().clear();
+
+        for (DeliveryChallanItem i : updated.getItems()) {
+
+            i.setChallan(existing);
+
+            existing.getItems().add(i);
+        }
+
+        calculate(existing);
+
+        return repo.save(existing);
+    }
+
+    // ================= CANCEL =================
+
+    public DeliveryChallan cancel(Long id) {
+
+        DeliveryChallan c = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Not found"));
+
+        if ("DELIVERED".equals(c.getStatus())) {
+
+            throw new RuntimeException(
+                    "Delivered challan cannot cancel"
+            );
+        }
+
+        c.setStatus("CANCELLED");
+
+        return repo.save(c);
+    }
+
+    // ================= DELIVER =================
+
+    public DeliveryChallan deliver(Long id) {
+
+        try {
+
+            System.out.println("DELIVER METHOD START");
+
+            DeliveryChallan dc =
+                    repo.findById(id)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Delivery Challan not found"
+                                    )
+                            );
+
+            System.out.println("STEP 1");
+
+            if ("DELIVERED".equalsIgnoreCase(dc.getStatus())) {
+
+                throw new RuntimeException(
+                        "Already delivered"
+                );
+            }
+
+            System.out.println("STEP 2");
+
+            dc.setStatus("DELIVERED");
+
+            System.out.println("STEP 3");
+
+            if (dc.getInvoice() == null) {
+
+                System.out.println("STEP 4");
+
+                Invoice invoice =
+                        invoiceService.createFromChallan(dc);
+
+                System.out.println("STEP 5");
+
+                dc.setInvoice(invoice);
+
+                dc.setInvoiceCreated(true);
+            }
+
+            System.out.println("STEP 6");
+
+            DeliveryChallan saved =
+                    repo.save(dc);
+
+            System.out.println("STEP 7");
+
+            return saved;
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            throw new RuntimeException(
+                    e.getMessage()
+            );
+        }
+    }
+
+    // ================= GET ALL =================
+
+    public List<DeliveryChallan> getAll() {
+
+        return repo.findAll();
+    }
+
+    // ================= GST CALCULATION =================
+
+    private void calculate(DeliveryChallan c) {
+
+        BigDecimal totalTaxable = BigDecimal.ZERO;
+
+        BigDecimal totalCGST = BigDecimal.ZERO;
+
+        BigDecimal totalSGST = BigDecimal.ZERO;
+
+        BigDecimal totalIGST = BigDecimal.ZERO;
+
+        String placeOfSupply =
+                c.getPlaceOfSupply() != null
+                        ? c.getPlaceOfSupply().trim()
+                        : "";
+
+        boolean isIntraState =
+                placeOfSupply.equalsIgnoreCase("MH")
+                ||
+                placeOfSupply.equalsIgnoreCase("Maharashtra");
+
+        for (DeliveryChallanItem i : c.getItems()) {
+
+            BigDecimal qty = safe(i.getQuantity());
+
+            BigDecimal rate = safe(i.getRate());
+
+            BigDecimal taxable = qty.multiply(rate);
+
+            BigDecimal cgstPercent =
+                    safe(i.getCgstPercent());
+
+            BigDecimal sgstPercent =
+                    safe(i.getSgstPercent());
+
+            BigDecimal igstPercent =
+                    safe(i.getIgstPercent());
+
+            BigDecimal cgst = BigDecimal.ZERO;
+
+            BigDecimal sgst = BigDecimal.ZERO;
+
+            BigDecimal igst = BigDecimal.ZERO;
+
+            if (isIntraState) {
+
+                cgst = taxable.multiply(cgstPercent)
+                        .divide(
+                                BigDecimal.valueOf(100),
+                                2,
+                                RoundingMode.HALF_UP
+                        );
+
+                sgst = taxable.multiply(sgstPercent)
+                        .divide(
+                                BigDecimal.valueOf(100),
+                                2,
+                                RoundingMode.HALF_UP
+                        );
+
+            } else {
+
+                igst = taxable.multiply(igstPercent)
+                        .divide(
+                                BigDecimal.valueOf(100),
+                                2,
+                                RoundingMode.HALF_UP
+                        );
+            }
+
+            BigDecimal total =
+                    taxable
+                            .add(cgst)
+                            .add(sgst)
+                            .add(igst);
+
+            i.setTaxableAmount(taxable);
+
+            i.setCgstAmount(cgst);
+
+            i.setSgstAmount(sgst);
+
+            i.setIgstAmount(igst);
+
+            i.setTotalAmount(total);
+
+            totalTaxable =
+                    totalTaxable.add(taxable);
+
+            totalCGST =
+                    totalCGST.add(cgst);
+
+            totalSGST =
+                    totalSGST.add(sgst);
+
+            totalIGST =
+                    totalIGST.add(igst);
+        }
+
+        c.setTotalTaxable(totalTaxable);
+
+        c.setTotalCGST(totalCGST);
+
+        c.setTotalSGST(totalSGST);
+
+        c.setTotalIGST(totalIGST);
+
+        c.setGrandTotal(
+
+                totalTaxable
+                        .add(totalCGST)
+                        .add(totalSGST)
+                        .add(totalIGST)
+        );
+    }
+
+    private BigDecimal safe(BigDecimal val) {
+
+        return val != null
+                ? val
+                : BigDecimal.ZERO;
+    }
+
+    // ================= PDF =================
+
+   /* public byte[] generateChallanPdf(Long id)
+            throws Exception {
+    			DeliveryChallan c = repo.findById(id).orElseThrow(() -> new RuntimeException("Delivery Challan Not Found"));
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+            Document doc = new Document(PageSize.A4, 20, 20, 20, 20);
+
+            PdfWriter.getInstance(doc, out);
+
+            doc.open();
+
+            Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD, new Color(25, 45, 120));
+
+            Font bold = new Font(Font.HELVETICA, 10, Font.BOLD);
+
+            Font normal = new Font(Font.HELVETICA, 9, Font.NORMAL);
+
+            Font small = new Font(Font.HELVETICA, 8, Font.NORMAL);
+
+            Paragraph title = new Paragraph("DELIVERY CHALLAN", titleFont);
+
+            title.setAlignment(Element.ALIGN_CENTER);
+
+            title.setSpacingAfter(12);
+
+            doc.add(title);
+
+            PdfPTable company = new PdfPTable(new float[]{1, 4});
+
+            company.setWidthPercentage(100);
+
+			
+			 * PdfPCell logo = new PdfPCell(new Phrase("LOGO", bold));
+			 * 
+			 * logo.setFixedHeight(80);
+			 * 
+			 * logo.setHorizontalAlignment(Element.ALIGN_CENTER);
+			 * 
+			 * logo.setVerticalAlignment(Element.ALIGN_MIDDLE);
+			 * 
+			 * company.addCell(logo);
+			 
+            PdfPCell logoCell;
+
+            try {
+
+                InputStream logoStream =
+                        getClass()
+                        .getResourceAsStream(
+                                "/static/page-1.png"
+                        );
+
+                if (logoStream != null) {
+
+                    byte[] logoBytes =
+                            logoStream.readAllBytes();
+
+                    Image logo =
+                            Image.getInstance(
+                                    logoBytes
+                            );
+
+                    logo.scaleToFit(55, 55);
+
+                    logo.setAlignment(
+                            Element.ALIGN_CENTER
+                    );
+
+                    logoCell =
+                            new PdfPCell(
+                                    logo,
+                                    true
+                            );
+
+                } else {
+
+                    logoCell =
+                            new PdfPCell(
+                                    new Phrase(
+                                            "LOGO",
+                                            headerFont
+                                    )
+                            );
+                }
+
+            } catch (Exception e) {
+
+                logoCell =
+                        new PdfPCell(
+                                new Phrase(
+                                        "LOGO",
+                                        headerFont
+                                )
+                        );
+            }
+
+            logoCell.setFixedHeight(65);
+
+            logoCell.setHorizontalAlignment(
+                    Element.ALIGN_CENTER
+            );
+
+            logoCell.setVerticalAlignment(
+                    Element.ALIGN_MIDDLE
+            );
+
+            
+
+            company.addCell(logoCell);
+
+            PdfPCell comp = new PdfPCell();
+
+            comp.addElement(new Paragraph("SANDHYA ENGINEERING", bold));
+
+            comp.addElement(new Paragraph(
+                    "Gat no-255/5, Jyotibanagar,\nTalawade, Pune - 411062",
+                    normal));
+
+            comp.addElement(new Paragraph(
+                    "Phone : 8766763568",
+                    normal));
+
+            comp.addElement(new Paragraph(
+                    "GSTIN : 27BUIPJ1964R1ZU",
+                    bold));
+
+            comp.addElement(new Paragraph(
+                    "Email : sandhyaengineering1988@gmail.com",
+                    normal));
+
+            company.addCell(comp);
+
+            doc.add(company);
+
+            doc.add(new Paragraph(" "));
+
+            PdfPTable info = new PdfPTable(2);
+
+            info.setWidthPercentage(100);
+
+            info.setSpacingBefore(5);
+
+            PdfPCell customer = new PdfPCell();
+
+            customer.addElement(new Paragraph("Delivery Challan For", bold));
+
+            customer.addElement(new Paragraph(
+                    safeStr(c.getCustomerName()),
+                    bold));
+
+            customer.addElement(new Paragraph(
+                    safeStr(c.getCustomerAddress()),
+                    normal));
+
+            customer.addElement(new Paragraph(
+                    "GST : " + safeStr(c.getCustomerGST()),
+                    normal));
+
+            customer.addElement(new Paragraph(
+                    "Phone : " + safeStr(c.getCustomerPhone()),
+                    normal));
+
+            customer.addElement(new Paragraph(
+                    "Email : " + safeStr(c.getCustomerEmail()),
+                    small));
+
+            info.addCell(customer);
+
+            PdfPCell details = new PdfPCell();
+
+            details.addElement(new Paragraph("Challan Details", bold));
+
+            details.addElement(new Paragraph(
+                    "Challan No : " + safeStr(c.getChallanNumber()),
+                    normal));
+
+            details.addElement(new Paragraph(
+                    "Date : " + safeStr(String.valueOf(c.getChallanDate())),
+                    normal));
+
+            details.addElement(new Paragraph(
+                    "Vehicle No : " + safeStr(c.getVehicleNumber()),
+                    normal));
+
+            details.addElement(new Paragraph(
+                    "Transport : " + safeStr(c.getTransportName()),
+                    normal));
+
+            details.addElement(new Paragraph(
+                    "Place Of Supply : " + safeStr(c.getPlaceOfSupply()),
+                    normal));
+
+            info.addCell(details);
+
+            doc.add(info);
+
+            doc.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(
+                    new float[]{1, 4, 2, 2, 2, 2, 2});
+
+            table.setWidthPercentage(100);
+
+            table.setSpacingBefore(10);
+
+            table.addCell(headerCell("#"));
+
+            table.addCell(headerCell("Item"));
+
+            table.addCell(headerCell("HSN"));
+
+            table.addCell(headerCell("Qty"));
+
+            table.addCell(headerCell("Rate"));
+
+            table.addCell(headerCell("GST"));
+
+            table.addCell(headerCell("Amount"));
+
+            int sr = 1;
+
+            BigDecimal totalQty = BigDecimal.ZERO;
+
+            for (DeliveryChallanItem item : c.getItems()) {
+
+                BigDecimal qty = safe(item.getQuantity());
+
+                BigDecimal rate = safe(item.getRate());
+
+                BigDecimal amount = safe(item.getTotalAmount());
+
+                BigDecimal gst =
+                        safe(item.getCgstAmount())
+                                .add(safe(item.getSgstAmount()))
+                                .add(safe(item.getIgstAmount()));
+
+                table.addCell(bodyCell(String.valueOf(sr++)));
+
+                table.addCell(bodyCell(
+                        safeStr(item.getDescription())));
+
+                table.addCell(bodyCell(
+                        safeStr(item.getHsnCode())));
+
+                table.addCell(bodyCell(
+                        qty.setScale(2, RoundingMode.HALF_UP).toString()));
+
+                table.addCell(bodyCell(
+                        rate.setScale(2, RoundingMode.HALF_UP).toString()));
+
+                table.addCell(bodyCell(
+                        gst.setScale(2, RoundingMode.HALF_UP).toString()));
+
+                table.addCell(bodyCell(
+                        amount.setScale(2, RoundingMode.HALF_UP).toString()));
+
+                totalQty = totalQty.add(qty);
+            }
+
+            PdfPCell totalLabel = new PdfPCell(
+                    new Phrase("Total Quantity", bold));
+
+            totalLabel.setColspan(3);
+
+            totalLabel.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+            table.addCell(totalLabel);
+
+            table.addCell(bodyCell(
+                    totalQty.setScale(2, RoundingMode.HALF_UP).toString()));
+
+            table.addCell(bodyCell(""));
+
+            table.addCell(bodyCell(""));
+
+            table.addCell(bodyCell(""));
+
+            doc.add(table);
+
+            doc.add(new Paragraph(" "));
+
+            PdfPTable totals = new PdfPTable(2);
+
+            totals.setWidthPercentage(35);
+
+            totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+            totals.addCell(headerCell("Taxable"));
+
+            totals.addCell(bodyCell(
+                    safe(c.getTotalTaxable())
+                            .setScale(2, RoundingMode.HALF_UP)
+                            .toString()));
+
+            totals.addCell(headerCell("CGST"));
+
+            totals.addCell(bodyCell(
+                    safe(c.getTotalCGST())
+                            .setScale(2, RoundingMode.HALF_UP)
+                            .toString()));
+
+            totals.addCell(headerCell("SGST"));
+
+            totals.addCell(bodyCell(
+                    safe(c.getTotalSGST())
+                            .setScale(2, RoundingMode.HALF_UP)
+                            .toString()));
+
+            totals.addCell(headerCell("IGST"));
+
+            totals.addCell(bodyCell(
+                    safe(c.getTotalIGST())
+                            .setScale(2, RoundingMode.HALF_UP)
+                            .toString()));
+
+            totals.addCell(headerCell("Grand Total"));
+
+            totals.addCell(bodyCell(
+                    safe(c.getGrandTotal())
+                            .setScale(2, RoundingMode.HALF_UP)
+                            .toString()));
+
+            doc.add(totals);
+
+            doc.add(new Paragraph(" "));
+
+            PdfPTable descTable = new PdfPTable(2);
+
+            descTable.setWidthPercentage(100);
+
+            PdfPCell desc = new PdfPCell();
+
+            desc.addElement(new Paragraph("Comments", bold));
+
+            desc.addElement(new Paragraph(
+                    safeStr(c.getDescriptions()),
+                    normal));
+
+            descTable.addCell(desc);
+
+            PdfPCell terms = new PdfPCell();
+
+            terms.addElement(new Paragraph(
+                    "Terms And Conditions",
+                    bold));
+
+            terms.addElement(new Paragraph(
+                    "Thank you for doing business with us.",
+                    normal));
+
+            terms.addElement(new Paragraph(
+                    "Goods once sold will not be taken back.",
+                    small));
+
+            descTable.addCell(terms);
+
+            doc.add(descTable);
+
+          //  doc.add(new Paragraph(" "));
+
+            PdfPTable sign = new PdfPTable(3);
+
+            sign.setWidthPercentage(100);
+
+            sign.setSpacingBefore(30);
+
+            sign.addCell(signatureBox("Received By"));
+
+            sign.addCell(signatureBox("Delivered By"));
+
+            sign.addCell(signatureBox("For SANDHYA ENGINEERING"));
+
+            doc.add(sign);
+
+            doc.close();
+
+            return out.toByteArray();} */
+    
+    
+    
+    public byte[] generateChallanPdf(Long id) throws Exception {
+
+        DeliveryChallan challan = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Challan not found"));
+
+        Document document = new Document(PageSize.A4);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        PdfWriter.getInstance(document, out);
+
+        document.open();
+        
+        try {
+
+            InputStream watermarkStream =
+                    getClass()
+                            .getResourceAsStream(
+                                    "/static/page-1.png"
+                            );
+            PdfWriter writer =
+                    PdfWriter.getInstance(
+                            document,
+                            out
+                    );
+
+            document.open();
+            if (watermarkStream != null) {
+
+                byte[] logoBytes =
+                        watermarkStream.readAllBytes();
+
+                Image watermark =
+                        Image.getInstance(
+                                logoBytes
+                        );
+
+                watermark.scaleToFit(
+                        250,
+                        250
+                );
+
+                watermark.setAbsolutePosition(
+                        180,
+                        220
+                );
+
+                PdfGState gs =
+                        new PdfGState();
+
+                gs.setFillOpacity(0.08f);
+
+                PdfContentByte canvas =
+                        writer.getDirectContentUnder();
+
+                canvas.saveState();
+
+                canvas.setGState(gs);
+
+                canvas.addImage(watermark);
+
+                canvas.restoreState();
+            }
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+
+        Font titleFont = FontFactory.getFont(
+                FontFactory.HELVETICA_BOLD,
+                20
+        );
+
+        Font headerFont = FontFactory.getFont(
+                FontFactory.HELVETICA_BOLD,
+                11
+        );
+
+        Font normalFont = FontFactory.getFont(
+                FontFactory.HELVETICA,
+                10
+        );
+
+        // ================= TITLE =================
+
+        Paragraph title = new Paragraph(
+                "DELIVERY CHALLAN",
+                titleFont
+        );
+
+        title.setAlignment(Element.ALIGN_CENTER);
+
+        title.setSpacingAfter(15f);
+
+        document.add(title);
+
+        // ================= COMPANY TABLE =================
+
+        PdfPTable companyTable = new PdfPTable(2);
+
+        companyTable.setWidthPercentage(100);
+
+        companyTable.setWidths(new float[]{1f, 4f});
+
+        // LOGO
+
+        PdfPCell logoCell;
+
+        try {
+
+            InputStream is = getClass()
+                    .getResourceAsStream("/static/page-1.png");
+
+            Image logo = Image.getInstance(is.readAllBytes());
+
+            logo.scaleToFit(70, 70);
+
+            logoCell = new PdfPCell(logo, false);
+
+        } catch (Exception e) {
+
+            logoCell = new PdfPCell(
+                    new Phrase("LOGO")
+            );
+        }
+
+        logoCell.setPadding(10);
+
+        companyTable.addCell(logoCell);
+
+        // COMPANY DETAILS
+
+        PdfPCell companyCell = new PdfPCell();
+
+        companyCell.addElement(new Paragraph(
+                "SANDHYA ENGINEERING",
+                headerFont
+        ));
+
+        companyCell.addElement(new Paragraph(
+                "Gat no-255/5, Jyotibanagar,",
+                normalFont
+        ));
+
+        companyCell.addElement(new Paragraph(
+                "Talawade, Pune - 411062",
+                normalFont
+        ));
+
+        companyCell.addElement(new Paragraph(
+                "Phone : 8766763568",
+                normalFont
+        ));
+
+        companyCell.addElement(new Paragraph(
+                "GSTIN : 27BUIPJ1964R1ZU",
+                headerFont
+        ));
+
+        companyCell.addElement(new Paragraph(
+                "Email : sandhyaengineering1988@gmail.com",
+                normalFont
+        ));
+
+        companyCell.setPaddingTop(12f);
+
+        companyCell.setPaddingBottom(12f);
+
+        companyCell.setPaddingLeft(10f);
+
+        companyTable.addCell(companyCell);
+
+        document.add(companyTable);
+
+        document.add(new Paragraph(" "));
+
+        // ================= CUSTOMER + CHALLAN DETAILS =================
+
+        PdfPTable infoTable = new PdfPTable(2);
+
+        infoTable.setWidthPercentage(100);
+
+        infoTable.setWidths(new float[]{1f, 1f});
+
+        PdfPCell customerCell = new PdfPCell();
+
+        customerCell.addElement(new Paragraph(
+                "Delivery Challan For",
+                headerFont
+        ));
+
+        customerCell.addElement(new Paragraph(
+                challan.getCustomerName(),
+                headerFont
+        ));
+
+        customerCell.addElement(new Paragraph(
+                challan.getCustomerAddress(),
+                normalFont
+        ));
+
+        customerCell.addElement(new Paragraph(
+                "GST : " + challan.getCustomerGST(),
+                normalFont
+        ));
+
+        customerCell.addElement(new Paragraph(
+                "Phone : " + challan.getCustomerPhone(),
+                normalFont
+        ));
+
+        Paragraph emailPara = new Paragraph(
+                "Email : " + challan.getCustomerEmail(),
+                normalFont
+        );
+
+        emailPara.setSpacingAfter(8f);
+
+        customerCell.addElement(emailPara);
+
+        infoTable.addCell(customerCell);
+
+        PdfPCell challanCell = new PdfPCell();
+
+        challanCell.addElement(new Paragraph(
+                "Challan Details",
+                headerFont
+        ));
+
+        challanCell.addElement(new Paragraph(
+                "Challan No : " + challan.getChallanNumber(),
+                normalFont
+        ));
+
+        challanCell.addElement(new Paragraph(
+                "Date : " + challan.getChallanDate(),
+                normalFont
+        ));
+
+        challanCell.addElement(new Paragraph(
+                "Vehicle No : " + challan.getVehicleNumber(),
+                normalFont
+        ));
+
+        challanCell.addElement(new Paragraph(
+                "Transport : " + challan.getTransportName(),
+                normalFont
+        ));
+
+        challanCell.addElement(new Paragraph(
+                "Place Of Supply : " + challan.getPlaceOfSupply(),
+                normalFont
+        ));
+
+        infoTable.addCell(challanCell);
+
+        document.add(infoTable);
+
+        document.add(new Paragraph(" "));
+
+        // ================= ITEM TABLE =================
+
+        PdfPTable itemTable = new PdfPTable(9);
+
+        itemTable.setWidthPercentage(100);
+
+        itemTable.setWidths(
+                new float[]{0.5f, 2f, 1f, 1f, 1f, 1f, 1f,1f,1f}
+        );
+
+        String[] headers = {
+        	    "#",
+        	    "Item",
+        	    "HSN",
+        	    "Qty",
+        	    "Rate",
+        	    "CGST",
+        	    "SGST",
+        	    "IGST",
+        	    "Amount"
+        	};
+
+        for (String h : headers) {
+
+            PdfPCell cell = new PdfPCell(
+                    new Phrase(h, headerFont)
+            );
+
+            cell.setBackgroundColor(Color.LIGHT_GRAY);
+
+            itemTable.addCell(cell);
+        }
+
+        int sr = 1;
+
+        BigDecimal totalQty = BigDecimal.ZERO;
+
+        for (DeliveryChallanItem item : challan.getItems()) {
+
+            BigDecimal qty = safe(item.getQuantity());
+
+            BigDecimal rate = safe(item.getRate());
+
+            BigDecimal amount = safe(item.getTotalAmount());
+
+            BigDecimal cgst = safe(item.getCgstAmount());
+
+            BigDecimal sgst = safe(item.getSgstAmount());
+
+            BigDecimal igst = safe(item.getIgstAmount());
+
+            itemTable.addCell(String.valueOf(sr++));
+
+            itemTable.addCell(
+                    safeStr(item.getDescription())
+            );
+
+            itemTable.addCell(
+                    safeStr(item.getHsnCode())
+            );
+
+            itemTable.addCell(
+                    qty.setScale(2, RoundingMode.HALF_UP).toString()
+            );
+
+            itemTable.addCell(
+                    rate.setScale(2, RoundingMode.HALF_UP).toString()
+            );
+
+            itemTable.addCell(
+                    cgst.setScale(2, RoundingMode.HALF_UP).toString()
+            );
+
+            itemTable.addCell(
+                    sgst.setScale(2, RoundingMode.HALF_UP).toString()
+            );
+
+            itemTable.addCell(
+                    igst.setScale(2, RoundingMode.HALF_UP).toString()
+            );
+
+            itemTable.addCell(
+                    bodyCell(
+                            amount.setScale(2, RoundingMode.HALF_UP).toString()
+                    )
+            );
+
+            totalQty = totalQty.add(qty);
+        }
+        
+        
+        
+
+        PdfPCell totalCell = new PdfPCell(
+                new Phrase("Total Quantity", headerFont)
+        );
+
+        totalCell.setColspan(3);
+
+        totalCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+        itemTable.addCell(totalCell);
+
+        itemTable.addCell(totalQty.toString());
+
+        itemTable.addCell("");
+
+        itemTable.addCell("");
+
+        itemTable.addCell("");
+
+        document.add(itemTable);
+
+        document.add(new Paragraph(" "));
+
+        // ================= TERMS =================
+
+        PdfPTable termsTable = new PdfPTable(2);
+
+        termsTable.setWidthPercentage(100);
+
+        PdfPCell commentCell = new PdfPCell();
+
+        commentCell.addElement(new Paragraph(
+                "Comments",
+                headerFont
+        ));
+
+        commentCell.addElement(new Paragraph(
+                challan.getDescriptions(),
+                normalFont
+        ));
+
+        termsTable.addCell(commentCell);
+
+        PdfPCell termsCell = new PdfPCell();
+
+        termsCell.addElement(new Paragraph(
+                "Terms And Conditions",
+                headerFont
+        ));
+
+        termsCell.addElement(new Paragraph(
+                "Thank you for doing business with us.",
+                normalFont
+        ));
+
+        Paragraph goodsPara = new Paragraph(
+                "Goods once sold will not be taken back.",
+                normalFont
+        );
+
+      //  goodsPara.setSpacingBefore(6f);
+
+        goodsPara.setSpacingAfter(6f);
+
+        termsCell.addElement(goodsPara);
+
+        termsTable.addCell(termsCell);
+
+        document.add(termsTable);
+
+        document.add(new Paragraph(" "));
+
+        // ================= SIGNATURE TABLE =================
+
+        PdfPTable signTable = new PdfPTable(3);
+
+        signTable.setWidthPercentage(100);
+
+        PdfPCell receivedCell = new PdfPCell();
+
+        receivedCell.setFixedHeight(80);
+
+        receivedCell.addElement(new Paragraph(
+                "Received By",
+                headerFont
+        ));
+
+        receivedCell.addElement(new Paragraph(
+                "\nName:",
+                normalFont
+        ));
+
+        signTable.addCell(receivedCell);
+
+        PdfPCell deliveredCell = new PdfPCell();
+
+        deliveredCell.setFixedHeight(80);
+
+        deliveredCell.addElement(new Paragraph(
+                "Delivered By",
+                headerFont
+        ));
+
+        deliveredCell.addElement(new Paragraph(
+                "\nName:",
+                normalFont
+        ));
+
+        signTable.addCell(deliveredCell);
+
+        PdfPCell authCell = new PdfPCell();
+
+        authCell.setFixedHeight(80);
+
+        authCell.addElement(new Paragraph(
+                "For SANDHYA ENGINEERING",
+                headerFont
+        ));
+
+        authCell.addElement(new Paragraph(
+                "\nName:",
+                normalFont
+        ));
+
+        signTable.addCell(authCell);
+
+        document.add(signTable);
+
+        document.close();
+
+        return out.toByteArray();
+    }
+
+
+    // ================= HELPERS =================
+
+    private String safeStr(String val) {
+
+        return val != null
+                ? val
+                : "";
+    }
+
+    private PdfPCell headerCell(String text) {
+
+        PdfPCell cell = new PdfPCell(
+                new Phrase(text)
+        );
+
+        cell.setBackgroundColor(Color.LIGHT_GRAY);
+
+        return cell;
+    }
+
+    private PdfPCell bodyCell(String text) {
+
+    PdfPCell cell = new PdfPCell(
+            new Phrase(
+                    text,
+                    FontFactory.getFont(
+                            FontFactory.HELVETICA,
+                            10
+                    )
+            )
+    );
+
+    cell.setPaddingTop(6f);
+
+    cell.setPaddingBottom(6f);
+
+    cell.setPaddingLeft(5f);
+
+    cell.setPaddingRight(5f);
+
+    cell.setVerticalAlignment(
+            Element.ALIGN_MIDDLE
+    );
+
+    return cell;
+}
+
+    private PdfPCell signatureBox(String title) {
+
+        PdfPCell cell = new PdfPCell();
+
+        cell.setFixedHeight(100);
+
+        cell.addElement(
+                new Paragraph(
+                        title,
+                        new Font(
+                                Font.HELVETICA,
+                                10,
+                                Font.BOLD
+                        )
+                )
+        );
+
+        cell.addElement(
+                new Paragraph("\n\nName:")
+        );
+
+        cell.addElement(
+                new Paragraph("\nSignature:")
+        );
+
+        return cell;
+    }
+    Font headerFont =
+            FontFactory.getFont(
+                    FontFactory.HELVETICA_BOLD,
+                    8
+            );
+
+    public DeliveryChallan getById(Long id) {
+
+        return repo.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Delivery Challan Not Found"
+                        )
+                );
+    }
+}
