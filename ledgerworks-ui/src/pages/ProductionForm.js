@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import API from "../api/api";
+import { useToast } from "../components/Toast";
 
 function ProductionForm() {
+
+    const toast = useToast();
 
     // =====================================================
     // HEADER
@@ -67,6 +70,7 @@ function ProductionForm() {
 
         loadHistory();
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // =====================================================
@@ -192,7 +196,7 @@ function ProductionForm() {
 
                     setRawMaterials([]);
 
-                    alert(
+                    toast.error(
                         "BOM not found"
                     );
                 }
@@ -253,7 +257,7 @@ function ProductionForm() {
 
         if (hasInsufficientStock) {
 
-            alert(
+            toast.error(
                 "Insufficient raw material stock"
             );
 
@@ -298,7 +302,7 @@ function ProductionForm() {
                     payload
                 );
 
-            alert(
+            toast.success(
                 `Production saved successfully : ${res.data.productionNumber}`
             );
 
@@ -329,7 +333,7 @@ function ProductionForm() {
 
             console.error(err);
 
-            alert(
+            toast.error(
                 "Failed to save production"
             );
 
@@ -493,6 +497,8 @@ function ProductionForm() {
                 Auto Raw Material Consumption
             </h3>
 
+            <div className="table-scroll">
+
             <table
                 border="1"
                 cellPadding="10"
@@ -582,6 +588,8 @@ function ProductionForm() {
 
             </table>
 
+            </div>
+
             <hr />
 
             {/* ========================================= */}
@@ -611,6 +619,8 @@ function ProductionForm() {
             <h3>
                 Production History
             </h3>
+
+            <div className="table-scroll">
 
             <table
                 border="1"
@@ -692,6 +702,8 @@ function ProductionForm() {
                 </tbody>
 
             </table>
+
+            </div>
 
         </div>
     );

@@ -7,7 +7,11 @@ import {
   deleteVendor,
 } from "../api/api";
 
+import { useToast } from "../components/Toast";
+
 function Vendor() {
+
+  const toast = useToast();
 
   const [vendors, setVendors] = useState([]);
 
@@ -28,6 +32,7 @@ function Vendor() {
 
   useEffect(() => {
     loadVendors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ================= LOAD =================
@@ -55,7 +60,7 @@ function Vendor() {
 
       console.error(err);
 
-      alert("Error loading vendors");
+      toast.error("Error loading vendors");
 
     } finally {
 
@@ -95,7 +100,7 @@ function Vendor() {
 
     if (!form.name) {
 
-      alert("Vendor Name Required");
+      toast.error("Vendor Name Required");
 
       return;
     }
@@ -106,13 +111,13 @@ function Vendor() {
 
         await updateVendor(editId, form);
 
-        alert("Vendor Updated Successfully");
+        toast.success("Vendor Updated Successfully");
 
       } else {
 
         await saveVendor(form);
 
-        alert("Vendor Saved Successfully");
+        toast.success("Vendor Saved Successfully");
       }
 
       resetForm();
@@ -123,7 +128,7 @@ function Vendor() {
 
       console.error(err);
 
-      alert("Error saving vendor");
+      toast.error("Error saving vendor");
     }
   };
 
@@ -156,7 +161,7 @@ function Vendor() {
 
       await deleteVendor(id);
 
-      alert("Vendor Deleted Successfully");
+      toast.success("Vendor Deleted Successfully");
 
       loadVendors();
 
@@ -164,7 +169,7 @@ function Vendor() {
 
       console.error(err);
 
-      alert("Error deleting vendor");
+      toast.error("Error deleting vendor");
     }
   };
 
@@ -293,6 +298,8 @@ function Vendor() {
 
       ) : (
 
+        <div className="table-scroll">
+
         <table border="1" cellPadding="5">
 
           <thead>
@@ -366,6 +373,8 @@ function Vendor() {
           </tbody>
 
         </table>
+
+        </div>
       )}
 
     </div>

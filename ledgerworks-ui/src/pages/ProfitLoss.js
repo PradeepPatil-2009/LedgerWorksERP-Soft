@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import API from "../api/api";
 
 function ProfitLoss() {
@@ -26,7 +26,7 @@ function ProfitLoss() {
 
   // ================= LOAD REPORT =================
 
-  const loadProfitLoss = async () => {
+  const loadProfitLoss = useCallback(async () => {
 
     try {
 
@@ -59,18 +59,16 @@ function ProfitLoss() {
 
       alert("Failed to load Profit & Loss");
     }
-  };
+  }, [fromDate, toDate]);
 
   // ================= AUTO LOAD =================
-// eslint-disable-next-line react-hooks/exhaustive-deps
+  // Load once on mount only; subsequent fetches are driven by the Load button.
   useEffect(() => {
-    const load = async () => {
-      await loadProfitLoss();
-    };
 
-    load();
+    loadProfitLoss();
 
-  }, []); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ================= UI =================
 

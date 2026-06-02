@@ -3,29 +3,34 @@ package com.ledger.ledgerworks.configuration;
 import com.ledger.ledgerworks.entity.User;
 import com.ledger.ledgerworks.enums.Role;
 import com.ledger.ledgerworks.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+/**
+ * Seeds a default ADMIN account on first run. Idempotent: it never deletes
+ * existing users, so accounts created via User Management survive restarts.
+ */
 @Configuration
 public class DataInitializer {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(DataInitializer.class);
 
     @Bean
     CommandLineRunner init(UserRepository repo, PasswordEncoder encoder) {
         return args -> {
-
-            // 🔥 Always recreate admin (safe for now)
-            repo.deleteAll();
-
-            User admin = new User();
-            admin.setUsername("admin");
-            admin.setPassword(encoder.encode("admin123")); // ✅ encoded
-            admin.setRole(Role.ADMIN);
-
-            repo.save(admin);
-
-            System.out.println("✅ Admin created: admin / admin123");
+            if (repo.findByUsername("admin") == null) {
+                User admin = new User();
+                admin.setUsername("admin");
+                admin.setPassword(encoder.encode("admin123"));
+                admin.setRole(Role.ADMIN);
+                repo.save(admin);
+                log.info("Seeded default admin user: admin / admin123");
+            }
         };
     }
 }

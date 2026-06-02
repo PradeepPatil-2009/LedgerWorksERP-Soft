@@ -8,6 +8,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +35,9 @@ import com.ledger.ledgerworks.entity.DeliveryChallanItem;
 
 @Service
 public class InvoiceService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(InvoiceService.class);
 
     @Autowired
     private InvoiceRepository invoiceRepository;
@@ -367,7 +372,7 @@ public class InvoiceService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            log.warn("Invoice watermark rendering failed", e);
         }
 
         // =========================
@@ -1042,7 +1047,7 @@ public class InvoiceService {
 
     } catch (Exception e) {
 
-        e.printStackTrace();
+        log.error("Invoice PDF generation failed", e);
 
         throw new RuntimeException(
                 "Invoice PDF generation failed"

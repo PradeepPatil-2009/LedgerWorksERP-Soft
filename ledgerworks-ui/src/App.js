@@ -9,6 +9,7 @@ import {
 
 import MainLayout from "./components/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ToastProvider } from "./components/Toast";
 
 // ================= PAGES =================
 
@@ -57,6 +58,8 @@ import BackupManagementPage from "./pages/BackupManagementPage";
 function App() {
 
   return (
+
+    <ToastProvider>
 
     <BrowserRouter>
 
@@ -274,6 +277,8 @@ function App() {
       </Routes>
 
     </BrowserRouter>
+
+    </ToastProvider>
   );
 }
 

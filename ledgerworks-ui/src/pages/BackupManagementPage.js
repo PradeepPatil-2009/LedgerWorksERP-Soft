@@ -5,7 +5,11 @@ import React, {
 
 import axios from "axios";
 
+import { useToast } from "../components/Toast";
+
 function BackupManagementPage() {
+
+    const toast = useToast();
 
     const [message, setMessage] =
         useState("");
@@ -17,6 +21,7 @@ function BackupManagementPage() {
 
         loadBackups();
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadBackups = async () => {
@@ -54,6 +59,8 @@ function BackupManagementPage() {
                 response.data
             );
 
+            toast.success("Backup Created");
+
             loadBackups();
 
         } catch (error) {
@@ -61,6 +68,8 @@ function BackupManagementPage() {
             setMessage(
                 "Backup Failed"
             );
+
+            toast.error("Backup Failed");
         }
     };
 
@@ -97,6 +106,8 @@ function BackupManagementPage() {
                 response.data
             );
 
+            toast.success("Backup Deleted");
+
             loadBackups();
 
         } catch (error) {
@@ -104,6 +115,8 @@ function BackupManagementPage() {
             setMessage(
                 "Delete Failed"
             );
+
+            toast.error("Delete Failed");
         }
     };
 
@@ -132,11 +145,15 @@ function BackupManagementPage() {
             response.data
         );
 
+        toast.success("Backup Restored");
+
     } catch (error) {
 
         setMessage(
             "Restore Failed"
         );
+
+        toast.error("Restore Failed");
     }
 };
 
@@ -165,6 +182,8 @@ function BackupManagementPage() {
             <h3>
                 Backup History
             </h3>
+
+            <div className="table-scroll">
 
             <table
                 border="1"
@@ -267,6 +286,8 @@ function BackupManagementPage() {
                 </tbody>
 
             </table>
+
+            </div>
 
         </div>
     );

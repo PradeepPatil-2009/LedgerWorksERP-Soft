@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../components/Toast";
 
 export default function DeliveryChallanPage() {
 
     const navigate = useNavigate();
+
+    const toast = useToast();
 
     // ================= STATES =================
 
@@ -26,6 +29,7 @@ export default function DeliveryChallanPage() {
 
         loadChallans();
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadChallans = async () => {
@@ -167,7 +171,7 @@ export default function DeliveryChallanPage() {
 
             console.error(err);
 
-            alert("Unable to download DC PDF");
+            toast.error("Unable to download DC PDF");
         }
     };
 
@@ -182,7 +186,7 @@ export default function DeliveryChallanPage() {
 
             if (!challan.invoice?.id) {
 
-                alert("Invoice not created yet");
+                toast.info("Invoice not created yet");
 
                 return;
             }
@@ -226,7 +230,7 @@ export default function DeliveryChallanPage() {
 
             console.error(err);
 
-            alert("Unable to download invoice");
+            toast.error("Unable to download invoice");
         }
     };
 
@@ -250,7 +254,7 @@ export default function DeliveryChallanPage() {
                 `http://localhost:8080/api/delivery-challan/deliver/${id}`
             );
 
-            alert(
+            toast.success(
                 "Delivered + Invoice Created"
             );
 
@@ -260,7 +264,7 @@ export default function DeliveryChallanPage() {
 
             console.error(err);
 
-            alert("Delivery failed");
+            toast.error("Delivery failed");
         }
     };
 
@@ -284,7 +288,7 @@ export default function DeliveryChallanPage() {
                 `http://localhost:8080/api/delivery-challan/cancel/${id}`
             );
 
-            alert(
+            toast.success(
                 "Delivery Challan Cancelled"
             );
 
@@ -294,7 +298,7 @@ export default function DeliveryChallanPage() {
 
             console.error(err);
 
-            alert("Cancel failed");
+            toast.error("Cancel failed");
         }
     };
 
@@ -381,6 +385,8 @@ export default function DeliveryChallanPage() {
             </div>
 
             {/* TABLE */}
+
+            <div className="table-scroll">
 
             <table
                 border="1"
@@ -610,6 +616,8 @@ export default function DeliveryChallanPage() {
                 </tbody>
 
             </table>
+
+            </div>
 
             {/* PAGINATION */}
 

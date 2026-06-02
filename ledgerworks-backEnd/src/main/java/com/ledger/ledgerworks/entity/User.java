@@ -1,5 +1,6 @@
 package com.ledger.ledgerworks.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ledger.ledgerworks.enums.Role;
 import jakarta.persistence.*;
 
@@ -12,6 +13,9 @@ public class User {
     private Long id;
 
     private String username;
+
+    // Accept the password on create/update, but never serialize the hash back out.
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @Enumerated(EnumType.STRING)

@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useToast } from "../components/Toast";
 
 export default function ItemMasterPage() {
+
+  const toast = useToast();
 
   const [items, setItems] = useState([]);
 
@@ -23,6 +26,7 @@ export default function ItemMasterPage() {
 
   useEffect(() => {
     loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadItems = async () => {
@@ -39,7 +43,7 @@ export default function ItemMasterPage() {
 
       console.error(err);
 
-      alert("Error loading items");
+      toast.error("Error loading items");
     }
   };
 
@@ -78,7 +82,7 @@ export default function ItemMasterPage() {
 
     if (!form.itemName) {
 
-      alert("Item Name Required");
+      toast.error("Item Name Required");
 
       return;
     }
@@ -90,7 +94,7 @@ export default function ItemMasterPage() {
         form
       );
 
-      alert("Item Saved Successfully");
+      toast.success("Item Saved Successfully");
 
       resetForm();
 
@@ -100,7 +104,7 @@ export default function ItemMasterPage() {
 
       console.error(err);
 
-      alert("Error saving item");
+      toast.error("Error saving item");
     }
   };
 
@@ -220,6 +224,8 @@ export default function ItemMasterPage() {
 
       {/* ================= TABLE ================= */}
 
+      <div className="table-scroll">
+
       <table border="1" cellPadding="5">
 
         <thead>
@@ -280,6 +286,8 @@ export default function ItemMasterPage() {
         </tbody>
 
       </table>
+
+      </div>
 
     </div>
   );

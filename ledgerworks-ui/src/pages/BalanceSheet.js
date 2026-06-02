@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import API from "../api/api";
 
 function BalanceSheet() {
@@ -24,7 +24,7 @@ function BalanceSheet() {
 
   // ================= LOAD REPORT =================
 
-  const loadBalanceSheet = async () => {
+  const loadBalanceSheet = useCallback(async () => {
 
     try {
 
@@ -55,7 +55,7 @@ function BalanceSheet() {
 
       alert("Failed to load Balance Sheet ❌");
     }
-  };
+  }, [fromDate, toDate]);
 
   // ================= AUTO LOAD =================
 
@@ -72,14 +72,13 @@ function BalanceSheet() {
 
   // ================= AUTO FETCH =================
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
 
     if (fromDate && toDate) {
       loadBalanceSheet();
     }
 
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, loadBalanceSheet]);
   // ================= UI =================
 
   return (

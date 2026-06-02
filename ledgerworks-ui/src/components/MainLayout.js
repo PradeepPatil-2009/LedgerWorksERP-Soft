@@ -7,15 +7,23 @@ import {
 
 import { useEffect } from "react";
 
+import {
+  clearAuthSession,
+  getRole,
+  getUsername
+} from "../api/authToken";
+
 function MainLayout() {
 
   const navigate = useNavigate();
 
   const location = useLocation();
 
-  const username =
-    localStorage.getItem("username")
-    || "admin";
+  const username = getUsername() || "admin";
+
+  const role = getRole() || "USER";
+
+  const isAdmin = role === "ADMIN";
 
   // =====================================================
   // REDIRECT
@@ -36,107 +44,60 @@ function MainLayout() {
 
   const handleLogout = () => {
 
-    localStorage.removeItem("token");
-
-    localStorage.removeItem("username");
+    clearAuthSession();
 
     navigate("/login");
   };
 
   return (
 
-    <div
-      style={{
-        padding: "20px",
-        fontFamily: "Arial",
-        background: "#f5f5f5",
-        minHeight: "100vh"
-      }}
-    >
+    <div className="app-shell">
 
       {/* ===================================================== */}
       {/* HEADER */}
       {/* ===================================================== */}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          background: "#fff",
-          padding: "20px",
-          border: "1px solid #ddd"
-        }}
-      >
+      <header className="app-header">
 
-        <div>
+        <div className="app-header-info">
 
-          <h1
-            style={{
-              margin: 0,
-              color: "#1e293b"
-            }}
-          >
+          <h1 className="app-title">
             LedgerWorks ERP
           </h1>
 
-          <p
-            style={{
-              marginTop: "5px"
-            }}
-          >
+          <p className="app-user">
             Welcome: <b>{username}</b>
+            <span className="app-role-badge">{role}</span>
           </p>
 
         </div>
 
         <button
           onClick={handleLogout}
-          style={{
-            padding: "10px 18px",
-            cursor: "pointer",
-            border: "none",
-            background: "#dc2626",
-            color: "#fff",
-            borderRadius: "5px"
-          }}
+          className="btn btn-danger"
         >
           Logout
         </button>
 
-      </div>
+      </header>
 
       {/* ===================================================== */}
       {/* MENU SECTION */}
       {/* ===================================================== */}
 
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid #ddd",
-          padding: "20px",
-          marginBottom: "20px"
-        }}
-      >
+      <nav className="app-nav">
 
         {/* ===================================================== */}
         {/* CORE */}
         {/* ===================================================== */}
 
-        <div style={{ marginBottom: "20px" }}>
+        <div className="nav-group">
 
-          <h3 style={{ marginBottom: "10px" }}>
+          <h3 className="nav-group-title">
             Core Masters
           </h3>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "15px"
-            }}
-          >
+          <div className="nav-links">
 
             <Link to="/dashboard">Dashboard</Link>
 
@@ -144,12 +105,13 @@ function MainLayout() {
 
             <Link to="/vendors">Vendors</Link>
 
-            <Link to="/users">Users</Link>
+            {isAdmin && <Link to="/users">Users</Link>}
 
             <Link to="/items">Item Master</Link>
 
             <Link to="/stock-report">Stock Report</Link>
-            <Link to="/backup-management">Backup Management </Link>
+
+            <Link to="/backup-management">Backup Management</Link>
 
           </div>
 
@@ -159,19 +121,13 @@ function MainLayout() {
         {/* TRANSACTIONS */}
         {/* ===================================================== */}
 
-        <div style={{ marginBottom: "20px" }}>
+        <div className="nav-group">
 
-          <h3 style={{ marginBottom: "10px" }}>
+          <h3 className="nav-group-title">
             Transactions
           </h3>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "15px"
-            }}
-          >
+          <div className="nav-links">
 
             <Link to="/purchase">
               Purchase
@@ -217,19 +173,13 @@ function MainLayout() {
         {/* ACCOUNTING */}
         {/* ===================================================== */}
 
-        <div style={{ marginBottom: "20px" }}>
+        <div className="nav-group">
 
-          <h3 style={{ marginBottom: "10px" }}>
+          <h3 className="nav-group-title">
             Accounting
           </h3>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "15px"
-            }}
-          >
+          <div className="nav-links">
 
             <Link to="/accounts">
               Ledger Accounts
@@ -247,27 +197,20 @@ function MainLayout() {
         {/* REPORTS */}
         {/* ===================================================== */}
 
+        <div className="nav-group">
 
-        <div>
-
-          <h3 style={{ marginBottom: "10px" }}>
+          <h3 className="nav-group-title">
             Reports
           </h3>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "15px"
-            }}
-          >
+          <div className="nav-links">
 
             <Link to="/trial-balance">
               Trial Balance
             </Link>
 
             <Link to="/profit-loss">
-              Profit & Loss
+              Profit &amp; Loss
             </Link>
 
             <Link to="/balance-sheet">
@@ -298,23 +241,17 @@ function MainLayout() {
 
         </div>
 
-      </div>
+      </nav>
 
       {/* ===================================================== */}
       {/* PAGE CONTENT */}
       {/* ===================================================== */}
 
-      <div
-        style={{
-          background: "#fff",
-          padding: "20px",
-          border: "1px solid #ddd"
-        }}
-      >
+      <main className="app-content">
 
         <Outlet />
 
-      </div>
+      </main>
 
     </div>
   );

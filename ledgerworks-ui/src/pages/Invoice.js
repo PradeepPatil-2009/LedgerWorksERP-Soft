@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { getInvoices } from "../api/api";
+import { useToast } from "../components/Toast";
 
 function Invoice() {
+
+  const toast = useToast();
 
   const [invoices, setInvoices] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -76,7 +80,7 @@ function Invoice() {
 
       console.error(error);
 
-      alert("PDF download failed");
+      toast.error("PDF download failed");
     }
   };
 
@@ -114,6 +118,8 @@ function Invoice() {
       <br />
 
       {/* TABLE */}
+
+      <div className="table-scroll">
 
       <table border="1" width="100%">
 
@@ -186,6 +192,8 @@ function Invoice() {
         </tbody>
 
       </table>
+
+      </div>
 
     </div>
   );

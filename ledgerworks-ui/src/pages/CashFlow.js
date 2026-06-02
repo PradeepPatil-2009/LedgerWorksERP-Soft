@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   getCashFlow
@@ -37,7 +37,7 @@ function CashFlow() {
 
   // ================= LOAD =================
 
-  const load = async () => {
+  const load = useCallback(async () => {
 
     setLoading(true);
 
@@ -75,7 +75,7 @@ function CashFlow() {
 
       setLoading(false);
     }
-  };
+  }, [fromDate, toDate]);
 
   // ================= DEFAULT DATE =================
 
@@ -101,14 +101,13 @@ function CashFlow() {
 
   // ================= AUTO LOAD =================
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
 
     if (fromDate && toDate) {
       load();
     }
 
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, load]);
 
   // ================= UI =================
 

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../components/Toast";
 
 export default function PurchasePage() {
 
     const navigate = useNavigate();
+
+    const toast = useToast();
 
     // ================= STATES =================
 
@@ -28,6 +31,7 @@ export default function PurchasePage() {
 
         loadPurchases();
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
         const loadPurchases = async () => {
@@ -91,7 +95,7 @@ export default function PurchasePage() {
                 `http://localhost:8080/api/purchases/cancel/${id}`
             );
 
-            alert("Purchase Cancelled");
+            toast.success("Purchase Cancelled");
 
             loadPurchases();
 
@@ -99,7 +103,7 @@ export default function PurchasePage() {
 
             console.error(err);
 
-            alert("Cancel failed");
+            toast.error("Cancel failed");
         }
     };
 
@@ -260,6 +264,8 @@ export default function PurchasePage() {
             </div>
 
             {/* ================= TABLE ================= */}
+
+            <div className="table-scroll">
 
             <table
                 border="1"
@@ -476,6 +482,8 @@ export default function PurchasePage() {
                 </tbody>
 
             </table>
+
+            </div>
 
             {/* ================= PAGINATION ================= */}
 

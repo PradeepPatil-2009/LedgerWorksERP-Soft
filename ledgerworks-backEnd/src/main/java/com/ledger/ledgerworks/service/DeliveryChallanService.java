@@ -7,6 +7,8 @@ import com.ledger.ledgerworks.repository.DeliveryChallanRepository;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,9 @@ import java.util.List;
 
 @Service
 public class DeliveryChallanService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(DeliveryChallanService.class);
 
     @Autowired
     private DeliveryChallanRepository repo;
@@ -145,7 +150,7 @@ public class DeliveryChallanService {
 
         try {
 
-            System.out.println("DELIVER METHOD START");
+            log.debug("Deliver started for challan id {}", id);
 
             DeliveryChallan dc =
                     repo.findById(id)
@@ -155,8 +160,6 @@ public class DeliveryChallanService {
                                     )
                             );
 
-            System.out.println("STEP 1");
-
             if ("DELIVERED".equalsIgnoreCase(dc.getStatus())) {
 
                 throw new RuntimeException(
@@ -164,38 +167,28 @@ public class DeliveryChallanService {
                 );
             }
 
-            System.out.println("STEP 2");
-
             dc.setStatus("DELIVERED");
-
-            System.out.println("STEP 3");
 
             if (dc.getInvoice() == null) {
 
-                System.out.println("STEP 4");
-
                 Invoice invoice =
                         invoiceService.createFromChallan(dc);
-
-                System.out.println("STEP 5");
 
                 dc.setInvoice(invoice);
 
                 dc.setInvoiceCreated(true);
             }
 
-            System.out.println("STEP 6");
-
             DeliveryChallan saved =
                     repo.save(dc);
 
-            System.out.println("STEP 7");
+            log.debug("Deliver completed for challan id {}", id);
 
             return saved;
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            log.error("Deliver failed for challan id {}", id, e);
 
             throw new RuntimeException(
                     e.getMessage()
@@ -783,7 +776,7 @@ public class DeliveryChallanService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            log.warn("Delivery challan watermark rendering failed", e);
         }
 
         Font titleFont = FontFactory.getFont(
@@ -980,24 +973,22 @@ public class DeliveryChallanService {
 
         // ================= ITEM TABLE =================
 
-        PdfPTable itemTable = new PdfPTable(9);
+        // Delivery Challan is a dispatch copy: show only
+        // Sr.No, Item Name, HSN and Quantity. Rate / CGST / SGST /
+        // IGST / Amount are intentionally hidden on the DC PDF.
+        PdfPTable itemTable = new PdfPTable(4);
 
         itemTable.setWidthPercentage(100);
 
         itemTable.setWidths(
-                new float[]{0.5f, 2f, 1f, 1f, 1f, 1f, 1f,1f,1f}
+                new float[]{0.5f, 3f, 1.5f, 1.5f}
         );
 
         String[] headers = {
         	    "#",
         	    "Item",
         	    "HSN",
-        	    "Qty",
-        	    "Rate",
-        	    "CGST",
-        	    "SGST",
-        	    "IGST",
-        	    "Amount"
+        	    "Qty"
         	};
 
         for (String h : headers) {
@@ -1019,16 +1010,6 @@ public class DeliveryChallanService {
 
             BigDecimal qty = safe(item.getQuantity());
 
-            BigDecimal rate = safe(item.getRate());
-
-            BigDecimal amount = safe(item.getTotalAmount());
-
-            BigDecimal cgst = safe(item.getCgstAmount());
-
-            BigDecimal sgst = safe(item.getSgstAmount());
-
-            BigDecimal igst = safe(item.getIgstAmount());
-
             itemTable.addCell(String.valueOf(sr++));
 
             itemTable.addCell(
@@ -1043,33 +1024,8 @@ public class DeliveryChallanService {
                     qty.setScale(2, RoundingMode.HALF_UP).toString()
             );
 
-            itemTable.addCell(
-                    rate.setScale(2, RoundingMode.HALF_UP).toString()
-            );
-
-            itemTable.addCell(
-                    cgst.setScale(2, RoundingMode.HALF_UP).toString()
-            );
-
-            itemTable.addCell(
-                    sgst.setScale(2, RoundingMode.HALF_UP).toString()
-            );
-
-            itemTable.addCell(
-                    igst.setScale(2, RoundingMode.HALF_UP).toString()
-            );
-
-            itemTable.addCell(
-                    bodyCell(
-                            amount.setScale(2, RoundingMode.HALF_UP).toString()
-                    )
-            );
-
             totalQty = totalQty.add(qty);
         }
-        
-        
-        
 
         PdfPCell totalCell = new PdfPCell(
                 new Phrase("Total Quantity", headerFont)
@@ -1082,12 +1038,6 @@ public class DeliveryChallanService {
         itemTable.addCell(totalCell);
 
         itemTable.addCell(totalQty.toString());
-
-        itemTable.addCell("");
-
-        itemTable.addCell("");
-
-        itemTable.addCell("");
 
         document.add(itemTable);
 

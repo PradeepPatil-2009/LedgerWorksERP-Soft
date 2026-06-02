@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../components/Toast";
 
 function UserManagement() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ function UserManagement() {
   // ✅ CREATE USER
   const createUser = async () => {
     if (!newUser.username || !newUser.password) {
-      alert("Enter username & password");
+      toast.error("Enter username & password");
       return;
     }
 
@@ -62,10 +64,12 @@ function UserManagement() {
         body: JSON.stringify(newUser),
       });
 
+      toast.success("User Created");
       setNewUser({ username: "", password: "", role: "USER" });
       fetchUsers();
     } catch (err) {
       console.error("Create Error:", err);
+      toast.error("Failed to create user");
     }
   };
 
@@ -81,9 +85,11 @@ function UserManagement() {
         },
       });
 
+      toast.success("User Deleted");
       fetchUsers();
     } catch (err) {
       console.error("Delete Error:", err);
+      toast.error("Failed to delete user");
     }
   };
 
@@ -100,9 +106,11 @@ function UserManagement() {
         }
       );
 
+      toast.success("Role Updated");
       fetchUsers();
     } catch (err) {
       console.error("Update Error:", err);
+      toast.error("Failed to update role");
     }
   };
 
@@ -147,6 +155,7 @@ function UserManagement() {
       <br />
 
       {/* TABLE */}
+      <div className="table-scroll">
       <table border="1" style={{ margin: "0 auto" }}>
         <thead>
           <tr>
@@ -182,6 +191,7 @@ function UserManagement() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

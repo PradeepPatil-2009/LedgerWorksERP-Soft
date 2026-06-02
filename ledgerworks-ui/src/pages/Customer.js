@@ -7,7 +7,11 @@ import {
   deleteCustomer
 } from "../api/api";
 
+import { useToast } from "../components/Toast";
+
 function Customer() {
+
+  const toast = useToast();
 
   const [customers, setCustomers] =
     useState([]);
@@ -45,7 +49,7 @@ function Customer() {
 
       console.error(err);
 
-      alert(
+      toast.error(
         "Failed to load customers"
       );
     }
@@ -53,6 +57,7 @@ function Customer() {
 
   useEffect(() => {
     loadCustomers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ================= CHANGE =================
@@ -98,7 +103,7 @@ function Customer() {
 
       if (!form.name) {
 
-        alert(
+        toast.error(
           "Customer Name required"
         );
 
@@ -112,7 +117,7 @@ function Customer() {
           form
         );
 
-        alert(
+        toast.success(
           "Customer Updated"
         );
 
@@ -120,7 +125,7 @@ function Customer() {
 
         await saveCustomer(form);
 
-        alert(
+        toast.success(
           "Customer Saved"
         );
       }
@@ -133,7 +138,7 @@ function Customer() {
 
       console.error(err);
 
-      alert(
+      toast.error(
         "Error saving customer"
       );
     }
@@ -181,13 +186,17 @@ function Customer() {
 
       await deleteCustomer(id);
 
+      toast.success(
+        "Customer Deleted"
+      );
+
       loadCustomers();
 
     } catch (err) {
 
       console.error(err);
 
-      alert(
+      toast.error(
         "Delete failed"
       );
     }
@@ -272,6 +281,8 @@ function Customer() {
 
       <br />
 
+      <div className="table-scroll">
+
       <table
         border="1"
         cellPadding="10"
@@ -343,6 +354,8 @@ function Customer() {
         </tbody>
 
       </table>
+
+      </div>
 
     </div>
   );

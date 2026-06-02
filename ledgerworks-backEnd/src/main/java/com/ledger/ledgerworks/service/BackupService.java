@@ -1,5 +1,8 @@
 package com.ledger.ledgerworks.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -25,12 +28,54 @@ import java.util.List;
 @Service
 public class BackupService {
 
+	private static final Logger log =
+			LoggerFactory.getLogger(BackupService.class);
+
+	@Value("${backup.dir:${user.home}/LedgerWorksBackup}")
+	private String backupDir;
+
+	@Value("${spring.datasource.url:}")
+	private String datasourceUrl;
+
+	@Value("${spring.datasource.username:root}")
+	private String dbUser;
+
+	@Value("${spring.datasource.password:}")
+	private String dbPassword;
+
+	private String resolveDatabaseName() {
+
+		// Extract the schema name from a JDBC URL such as
+		// jdbc:mysql://host:3306/<dbname>?params
+		if (datasourceUrl == null || datasourceUrl.isBlank()) {
+			return "ledgerworks";
+		}
+
+		String url = datasourceUrl;
+
+		int slash = url.lastIndexOf('/');
+
+		if (slash < 0 || slash == url.length() - 1) {
+			return "ledgerworks";
+		}
+
+		String afterSlash = url.substring(slash + 1);
+
+		int query = afterSlash.indexOf('?');
+
+		String dbName =
+				query >= 0
+						? afterSlash.substring(0, query)
+						: afterSlash;
+
+		return dbName.isBlank() ? "ledgerworks" : dbName;
+	}
+
 	public String createBackup() {
 
 	    try {
 
-	        String backupFolder =
-	                "D:/LedgerWorksBackup";
+	        String backupFolder = backupDir;
 
 	        new File(backupFolder).mkdirs();
 
@@ -44,18 +89,24 @@ public class BackupService {
 	        String backupFile =
 	                backupFolder + "/" + fileName;
 
+	        List<String> command = new ArrayList<>();
+
+	        // Resolved from PATH so it works on macOS/Linux/Windows.
+	        command.add("mysqldump");
+
+	        command.add("-u");
+	        command.add(dbUser);
+
+	        // MySQL accepts the password only when it is non-blank;
+	        // passing an empty -p would prompt interactively and hang.
+	        if (dbPassword != null && !dbPassword.isBlank()) {
+	            command.add("-p" + dbPassword);
+	        }
+
+	        command.add(resolveDatabaseName());
+
 	        ProcessBuilder pb =
-	                new ProcessBuilder(
-
-	                        "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump",
-
-	                        "-u",
-	                        "root",
-
-	                        "-pLedger@2026",
-
-	                        "ledgerworks"
-	                );
+	                new ProcessBuilder(command);
 
 	        pb.redirectOutput(
 	                new File(backupFile)
@@ -75,25 +126,25 @@ public class BackupService {
 	                    + backupFile;
 	        }
 
+	        log.warn("Backup failed with exit code {}", result);
+
 	        return "Backup Failed";
 
 	    } catch(Exception ex) {
 
-	        ex.printStackTrace();
+	        log.error("Backup error", ex);
 
 	        return "Backup Error : "
 	                + ex.getMessage();
 	    }
 	}
-    
-    
-    
+
+
+
 	private void cleanupOldBackups() {
 
 	    File folder =
-	            new File(
-	                    "D:/LedgerWorksBackup"
-	            );
+	            new File(backupDir);
 
 	    File[] files =
 	            folder.listFiles(
@@ -117,13 +168,16 @@ public class BackupService {
 	        i < files.length;
 	        i++) {
 
-	        files[i].delete();
+	        if (!files[i].delete()) {
+	            log.warn("Could not delete old backup {}",
+	                    files[i].getAbsolutePath());
+	        }
 	    }
 	}
-    
+
     public List<String> getBackupFiles() {
 
-        File folder = new File("D:/LedgerWorksBackup");
+        File folder = new File(backupDir);
 
         File[] files = folder.listFiles();
 
@@ -150,11 +204,7 @@ public class BackupService {
         try {
 
             Path path =
-                    Paths.get(
-                            "D:/LedgerWorksBackup",fileName
-                    
-                            
-                    );
+                    Paths.get(backupDir, fileName);
 
             Resource resource =
                     new UrlResource(
@@ -182,21 +232,18 @@ public class BackupService {
 
         } catch (Exception ex) {
 
-            ex.printStackTrace();
+            log.error("Download backup error", ex);
 
             return ResponseEntity
                     .internalServerError()
                     .build();
         }
     }
-    
+
     public String deleteBackup(String fileName) {
 
         File file =
-                new File(
-                        "D:/LedgerWorksBackup/"
-                                + fileName
-                );
+                new File(backupDir, fileName);
 
         if (file.exists()) {
 
@@ -214,21 +261,24 @@ public class BackupService {
         try {
 
             String backupFile =
-                    "D:/LedgerWorksBackup/"
-                            + fileName;
+                    backupDir + "/" + fileName;
+
+            List<String> command = new ArrayList<>();
+
+            // Resolved from PATH so it works on macOS/Linux/Windows.
+            command.add("mysql");
+
+            command.add("-u");
+            command.add(dbUser);
+
+            if (dbPassword != null && !dbPassword.isBlank()) {
+                command.add("-p" + dbPassword);
+            }
+
+            command.add(resolveDatabaseName());
 
             ProcessBuilder pb =
-                    new ProcessBuilder(
-
-                            "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql",
-
-                            "-u",
-                            "root",
-
-                            "-pLedger@2026",
-
-                            "ledgerworks"
-                    );
+                    new ProcessBuilder(command);
 
             pb.redirectInput(
                     new File(backupFile)
@@ -245,11 +295,13 @@ public class BackupService {
                 return "Database Restored Successfully";
             }
 
+            log.warn("Restore failed with exit code {}", result);
+
             return "Restore Failed";
 
         } catch (Exception ex) {
 
-            ex.printStackTrace();
+            log.error("Restore error", ex);
 
             return "Restore Error : "
                     + ex.getMessage();
