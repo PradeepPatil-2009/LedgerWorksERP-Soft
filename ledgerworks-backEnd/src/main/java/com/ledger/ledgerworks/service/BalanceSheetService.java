@@ -32,16 +32,18 @@ public class BalanceSheetService {
         // 1️⃣ FETCH VALUES (CORRECT ACCOUNTING LOGIC)
         // =====================================================
 
+        // ASSET is debit-natured: debit-side sum - credit-side sum.
         BigDecimal totalAssets =
-                transactionRepository.getBalanceByAccountType(
+                transactionRepository.getDebitBalanceByAccountType(
                         AccountType.ASSET, fromDate, toDate);
 
+        // LIABILITY / CAPITAL are credit-natured: credit-side sum - debit-side sum.
         BigDecimal totalLiabilities =
-                transactionRepository.getBalanceByAccountType(
+                transactionRepository.getCreditBalanceByAccountType(
                         AccountType.LIABILITY, fromDate, toDate);
 
         BigDecimal totalCapital =
-                transactionRepository.getBalanceByAccountType(
+                transactionRepository.getCreditBalanceByAccountType(
                         AccountType.CAPITAL, fromDate, toDate);
 
         // =====================================================
@@ -84,6 +86,7 @@ public class BalanceSheetService {
         return new BalanceSheetResponse(
                 totalAssets.setScale(2, RoundingMode.HALF_UP),
                 totalLiabilities.setScale(2, RoundingMode.HALF_UP),
+                totalCapital.setScale(2, RoundingMode.HALF_UP),
                 netProfit.setScale(2, RoundingMode.HALF_UP),
                 balanced
         );

@@ -2,7 +2,6 @@ package com.ledger.ledgerworks.service;
 
 import com.ledger.ledgerworks.dto.CashFlowResponse;
 import com.ledger.ledgerworks.dto.CashFlowRow;
-import com.ledger.ledgerworks.enums.AccountType;
 import com.ledger.ledgerworks.repository.LedgerTransactionRepository;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +12,13 @@ import java.util.List;
 
 @Service
 public class CashFlowService {
+
+    /**
+     * Ledger accounts that represent liquid cash. Movement on these accounts
+     * (debits = cash coming in, credits = cash going out) is the cash flow.
+     * These are the standard names seeded by the chart-of-accounts initializer.
+     */
+    private static final List<String> CASH_ACCOUNTS = List.of("Cash", "Bank");
 
     private final LedgerTransactionRepository repository;
 
@@ -25,73 +31,37 @@ public class CashFlowService {
             LocalDate toDate) {
 
         // =====================================================
-        // 1️⃣ FETCH DATA (CORRECT METHODS)
+        // 1️⃣ FETCH CASH MOVEMENTS
+        // Inflow  = debits posted to Cash/Bank in the period.
+        // Outflow = credits posted to Cash/Bank in the period.
         // =====================================================
 
-        BigDecimal operatingInflow =
-                repository.getProfitLossAmount(
-                        AccountType.INCOME, fromDate, toDate);
+        BigDecimal totalInflow =
+                safe(repository.getInflowForAccounts(
+                        CASH_ACCOUNTS, fromDate, toDate));
 
-        BigDecimal operatingOutflow =
-                repository.getProfitLossAmount(
-                        AccountType.EXPENSE, fromDate, toDate);
+        BigDecimal totalOutflow =
+                safe(repository.getOutflowForAccounts(
+                        CASH_ACCOUNTS, fromDate, toDate));
 
-        BigDecimal investingOutflow =
-                repository.getBalanceByAccountType(
-                        AccountType.ASSET, fromDate, toDate);
-
-        BigDecimal financingInflow =
-                repository.getBalanceByAccountType(
-                        AccountType.CAPITAL, fromDate, toDate);
+        BigDecimal netCash = totalInflow.subtract(totalOutflow);
 
         // =====================================================
-        // 2️⃣ NULL SAFETY
-        // =====================================================
-
-        operatingInflow = safe(operatingInflow);
-        operatingOutflow = safe(operatingOutflow);
-        investingOutflow = safe(investingOutflow);
-        financingInflow = safe(financingInflow);
-
-        // =====================================================
-        // 3️⃣ BUILD ROWS
+        // 2️⃣ BUILD ROWS
+        // The model carries no per-activity classification, so the net
+        // movement is reported as a single cash line.
         // =====================================================
 
         List<CashFlowRow> rows = new ArrayList<>();
 
         rows.add(new CashFlowRow(
-                "Operating Activities",
-                operatingInflow,
-                operatingOutflow
-        ));
-
-        rows.add(new CashFlowRow(
-                "Investing Activities",
-                BigDecimal.ZERO,
-                investingOutflow
-        ));
-
-        rows.add(new CashFlowRow(
-                "Financing Activities",
-                financingInflow,
-                BigDecimal.ZERO
+                "Cash & Bank Movement",
+                totalInflow,
+                totalOutflow
         ));
 
         // =====================================================
-        // 4️⃣ TOTAL CALCULATION
-        // =====================================================
-
-        BigDecimal totalInflow =
-                operatingInflow.add(financingInflow);
-
-        BigDecimal totalOutflow =
-                operatingOutflow.add(investingOutflow);
-
-        BigDecimal netCash =
-                totalInflow.subtract(totalOutflow);
-
-        // =====================================================
-        // 5️⃣ RETURN RESPONSE
+        // 3️⃣ RETURN RESPONSE
         // =====================================================
 
         return new CashFlowResponse(

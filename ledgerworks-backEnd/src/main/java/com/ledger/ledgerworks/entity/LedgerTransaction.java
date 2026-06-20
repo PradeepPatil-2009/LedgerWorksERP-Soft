@@ -3,6 +3,7 @@ package com.ledger.ledgerworks.entity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.ledger.ledgerworks.enums.TransactionType;
 
@@ -11,6 +12,11 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "ledger_transaction")
 public class LedgerTransaction {
+
+    // Monotonic in-JVM sequence so the millisecond-based number stays unique
+    // even when a single document posts several legs in the same millisecond
+    // (a multi-leg invoice/purchase writes 4-5 rows in one transaction).
+    private static final AtomicLong TXN_SEQUENCE = new AtomicLong();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -73,7 +79,8 @@ public class LedgerTransaction {
     public void beforeSave() {
 
         if (this.transactionNumber == null) {
-            this.transactionNumber = "TXN-" + System.currentTimeMillis();
+            this.transactionNumber =
+                    "TXN-" + System.currentTimeMillis() + "-" + TXN_SEQUENCE.incrementAndGet();
         }
 
         if (this.createdAt == null) {

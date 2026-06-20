@@ -31,6 +31,20 @@ public class DebitNote {
     @Column(precision = 15, scale = 2)
     private BigDecimal gstAmount = BigDecimal.ZERO;
 
+    // ===== Tax-split columns (for proper reversing GST posting) =====
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal taxableValue = BigDecimal.ZERO;
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal cgstAmount = BigDecimal.ZERO;
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal sgstAmount = BigDecimal.ZERO;
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal igstAmount = BigDecimal.ZERO;
+
     private String reason;
 
     @Column(length = 1000)
@@ -96,6 +110,38 @@ public class DebitNote {
 
     public void setGstAmount(BigDecimal gstAmount) {
         this.gstAmount = gstAmount;
+    }
+
+    public BigDecimal getTaxableValue() {
+        return taxableValue;
+    }
+
+    public void setTaxableValue(BigDecimal taxableValue) {
+        this.taxableValue = taxableValue;
+    }
+
+    public BigDecimal getCgstAmount() {
+        return cgstAmount;
+    }
+
+    public void setCgstAmount(BigDecimal cgstAmount) {
+        this.cgstAmount = cgstAmount;
+    }
+
+    public BigDecimal getSgstAmount() {
+        return sgstAmount;
+    }
+
+    public void setSgstAmount(BigDecimal sgstAmount) {
+        this.sgstAmount = sgstAmount;
+    }
+
+    public BigDecimal getIgstAmount() {
+        return igstAmount;
+    }
+
+    public void setIgstAmount(BigDecimal igstAmount) {
+        this.igstAmount = igstAmount;
     }
 
     public String getReason() {

@@ -1,8 +1,7 @@
 package com.ledger.ledgerworks.service;
 
-import com.ledger.ledgerworks.entity.LedgerAccount;
 import com.ledger.ledgerworks.entity.ReceiptVoucher;
-import com.ledger.ledgerworks.enums.AccountType;
+import com.ledger.ledgerworks.enums.VoucherPaymentMode;
 import com.ledger.ledgerworks.repository.ReceiptVoucherRepository;
 
 import org.slf4j.Logger;
@@ -16,6 +15,10 @@ import java.util.List;
 /**
  * Receipt Voucher - money received FROM a customer.
  * Ledger posting: debit Cash/Bank, credit the customer (Debtors).
+ *
+ * Posting is delegated to {@link AccountingPostingService#postReceipt} so that
+ * the {@link com.ledger.ledgerworks.entity.LedgerTransaction} rows are the ONE
+ * source of truth - no direct LedgerAccount.balance mutation happens here.
  */
 @Service
 public class ReceiptVoucherService {
@@ -23,14 +26,17 @@ public class ReceiptVoucherService {
     private static final Logger log = LoggerFactory.getLogger(ReceiptVoucherService.class);
 
     private final ReceiptVoucherRepository repository;
-    private final VoucherPostingHelper postingHelper;
+    private final AccountingPostingService accountingPostingService;
+    private final FinancialYearService financialYearService;
     private final DocumentNumberService documentNumberService;
 
     public ReceiptVoucherService(ReceiptVoucherRepository repository,
-                                 VoucherPostingHelper postingHelper,
+                                 AccountingPostingService accountingPostingService,
+                                 FinancialYearService financialYearService,
                                  DocumentNumberService documentNumberService) {
         this.repository = repository;
-        this.postingHelper = postingHelper;
+        this.accountingPostingService = accountingPostingService;
+        this.financialYearService = financialYearService;
         this.documentNumberService = documentNumberService;
     }
 
@@ -60,48 +66,31 @@ public class ReceiptVoucherService {
 
         ReceiptVoucher saved = repository.save(voucher);
 
-        // Best-effort ledger posting (never blocks the save)
+        // Balanced ledger posting on the voucher's own date (best-effort).
         postLedger(saved);
 
         return saved;
     }
 
     // =====================================================
-    // LEDGER: debit Cash/Bank, credit customer (Debtors)
+    // LEDGER: Dr Cash/Bank ; Cr customer (Debtors)
     // =====================================================
     private void postLedger(ReceiptVoucher voucher) {
         try {
-            LedgerAccount cashOrBank = postingHelper.resolveCashOrBank(voucher.getPaymentMode());
+            financialYearService.assertOpen(voucher.getDate());
 
             String partyName = (voucher.getPartyName() != null && !voucher.getPartyName().isBlank())
                     ? voucher.getPartyName()
                     : "Sundry Debtors";
 
-            LedgerAccount customer = postingHelper.resolveAccount(partyName, AccountType.ASSET);
+            VoucherPaymentMode mode = voucher.getPaymentMode() != null
+                    ? voucher.getPaymentMode()
+                    : VoucherPaymentMode.CASH;
 
-            String narration = (voucher.getNarration() != null && !voucher.getNarration().isBlank())
-                    ? voucher.getNarration()
-                    : "Receipt " + voucher.getVoucherNumber();
-
-            boolean posted = postingHelper.post(cashOrBank, customer, voucher.getAmount(), narration);
-
-            if (posted) {
-                reduceOutstanding(customer, voucher.getAmount());
-            }
+            accountingPostingService.postReceipt(
+                    partyName, voucher.getAmount(), mode.name(), voucher.getDate());
         } catch (Exception ex) {
             log.warn("Receipt voucher ledger posting skipped: {}", ex.getMessage());
-        }
-    }
-
-    // Reduce the customer's outstanding (asset balance) by the received amount.
-    private void reduceOutstanding(LedgerAccount customer, BigDecimal amount) {
-        try {
-            if (customer != null && amount != null) {
-                BigDecimal current = customer.getBalance() != null ? customer.getBalance() : BigDecimal.ZERO;
-                customer.setBalance(current.subtract(amount));
-            }
-        } catch (Exception ex) {
-            log.warn("Could not adjust customer outstanding: {}", ex.getMessage());
         }
     }
 }

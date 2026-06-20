@@ -1,8 +1,7 @@
 package com.ledger.ledgerworks.service;
 
-import com.ledger.ledgerworks.entity.LedgerAccount;
 import com.ledger.ledgerworks.entity.PaymentVoucher;
-import com.ledger.ledgerworks.enums.AccountType;
+import com.ledger.ledgerworks.enums.VoucherPaymentMode;
 import com.ledger.ledgerworks.repository.PaymentVoucherRepository;
 
 import org.slf4j.Logger;
@@ -16,6 +15,10 @@ import java.util.List;
 /**
  * Payment Voucher - money paid TO a vendor.
  * Ledger posting: debit the vendor (Creditors), credit Cash/Bank.
+ *
+ * Posting is delegated to {@link AccountingPostingService#postPayment} so that
+ * the {@link com.ledger.ledgerworks.entity.LedgerTransaction} rows are the ONE
+ * source of truth - no direct LedgerAccount.balance mutation happens here.
  */
 @Service
 public class PaymentVoucherService {
@@ -23,14 +26,17 @@ public class PaymentVoucherService {
     private static final Logger log = LoggerFactory.getLogger(PaymentVoucherService.class);
 
     private final PaymentVoucherRepository repository;
-    private final VoucherPostingHelper postingHelper;
+    private final AccountingPostingService accountingPostingService;
+    private final FinancialYearService financialYearService;
     private final DocumentNumberService documentNumberService;
 
     public PaymentVoucherService(PaymentVoucherRepository repository,
-                                 VoucherPostingHelper postingHelper,
+                                 AccountingPostingService accountingPostingService,
+                                 FinancialYearService financialYearService,
                                  DocumentNumberService documentNumberService) {
         this.repository = repository;
-        this.postingHelper = postingHelper;
+        this.accountingPostingService = accountingPostingService;
+        this.financialYearService = financialYearService;
         this.documentNumberService = documentNumberService;
     }
 
@@ -60,48 +66,31 @@ public class PaymentVoucherService {
 
         PaymentVoucher saved = repository.save(voucher);
 
-        // Best-effort ledger posting (never blocks the save)
+        // Balanced ledger posting on the voucher's own date (best-effort).
         postLedger(saved);
 
         return saved;
     }
 
     // =====================================================
-    // LEDGER: debit vendor (Creditors), credit Cash/Bank
+    // LEDGER: Dr vendor (Creditors) ; Cr Cash/Bank
     // =====================================================
     private void postLedger(PaymentVoucher voucher) {
         try {
-            LedgerAccount cashOrBank = postingHelper.resolveCashOrBank(voucher.getPaymentMode());
+            financialYearService.assertOpen(voucher.getDate());
 
             String partyName = (voucher.getPartyName() != null && !voucher.getPartyName().isBlank())
                     ? voucher.getPartyName()
                     : "Sundry Creditors";
 
-            LedgerAccount vendor = postingHelper.resolveAccount(partyName, AccountType.LIABILITY);
+            VoucherPaymentMode mode = voucher.getPaymentMode() != null
+                    ? voucher.getPaymentMode()
+                    : VoucherPaymentMode.CASH;
 
-            String narration = (voucher.getNarration() != null && !voucher.getNarration().isBlank())
-                    ? voucher.getNarration()
-                    : "Payment " + voucher.getVoucherNumber();
-
-            boolean posted = postingHelper.post(vendor, cashOrBank, voucher.getAmount(), narration);
-
-            if (posted) {
-                reduceOutstanding(vendor, voucher.getAmount());
-            }
+            accountingPostingService.postPayment(
+                    partyName, voucher.getAmount(), mode.name(), voucher.getDate());
         } catch (Exception ex) {
             log.warn("Payment voucher ledger posting skipped: {}", ex.getMessage());
-        }
-    }
-
-    // Reduce the vendor's outstanding (liability balance) by the paid amount.
-    private void reduceOutstanding(LedgerAccount vendor, BigDecimal amount) {
-        try {
-            if (vendor != null && amount != null) {
-                BigDecimal current = vendor.getBalance() != null ? vendor.getBalance() : BigDecimal.ZERO;
-                vendor.setBalance(current.subtract(amount));
-            }
-        } catch (Exception ex) {
-            log.warn("Could not adjust vendor outstanding: {}", ex.getMessage());
         }
     }
 }

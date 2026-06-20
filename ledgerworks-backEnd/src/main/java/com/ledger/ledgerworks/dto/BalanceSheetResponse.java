@@ -6,15 +6,18 @@ public class BalanceSheetResponse {
 
     private BigDecimal totalAssets;
     private BigDecimal totalLiabilities;
+    private BigDecimal totalCapital;
     private BigDecimal netProfit;
     private boolean balanced;
 
     public BalanceSheetResponse(BigDecimal totalAssets,
                                 BigDecimal totalLiabilities,
+                                BigDecimal totalCapital,
                                 BigDecimal netProfit,
                                 boolean balanced) {
         this.totalAssets = totalAssets;
         this.totalLiabilities = totalLiabilities;
+        this.totalCapital = totalCapital;
         this.netProfit = netProfit;
         this.balanced = balanced;
     }
@@ -25,6 +28,10 @@ public class BalanceSheetResponse {
 
     public BigDecimal getTotalLiabilities() {
         return totalLiabilities;
+    }
+
+    public BigDecimal getTotalCapital() {
+        return totalCapital;
     }
 
     public BigDecimal getNetProfit() {

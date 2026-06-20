@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ledger.ledgerworks.entity.DeliveryChallan;
 import com.ledger.ledgerworks.entity.Invoice;
@@ -58,6 +59,9 @@ public class InvoiceService {
     @Autowired
     private GstCalculatorService gstCalculatorService;
 
+    @Autowired
+    private AccountingPostingService accountingPostingService;
+
     // GET ALL INVOICES
 
     public List<Invoice> getAll() {
@@ -67,6 +71,7 @@ public class InvoiceService {
 
     // CREATE MANUAL INVOICE
 
+    @Transactional
     public Invoice create(
             Invoice invoice
     ) {
@@ -116,9 +121,17 @@ public class InvoiceService {
 
         // ================= SAVE =================
 
-        return invoiceRepository.save(
+        Invoice saved = invoiceRepository.save(
                 invoice
         );
+
+        // ================= LEDGER POSTING =================
+        // Post the balanced sales journal on the invoice's own date, inside the
+        // same transaction. Best-effort: never breaks invoice creation.
+
+        accountingPostingService.postSalesInvoice(saved);
+
+        return saved;
     }
 
     // CONVERT DELIVERY CHALLAN TO INVOICE
@@ -156,6 +169,7 @@ public class InvoiceService {
 
     // CREATE INVOICE FROM CHALLAN
 
+    @Transactional
     public Invoice createFromChallan(
             DeliveryChallan challan
     ) {
@@ -297,9 +311,17 @@ public class InvoiceService {
             invoice.getItems().add(invoiceItem);
         }
 
-        return invoiceRepository.save(
+        Invoice saved = invoiceRepository.save(
                 invoice
         );
+
+        // ================= LEDGER POSTING =================
+        // Post the balanced sales journal on the invoice's own date, inside the
+        // same transaction. Best-effort: never breaks invoice creation.
+
+        accountingPostingService.postSalesInvoice(saved);
+
+        return saved;
     }
 
 

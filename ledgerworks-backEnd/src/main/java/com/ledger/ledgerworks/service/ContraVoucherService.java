@@ -1,8 +1,6 @@
 package com.ledger.ledgerworks.service;
 
 import com.ledger.ledgerworks.entity.ContraVoucher;
-import com.ledger.ledgerworks.entity.LedgerAccount;
-import com.ledger.ledgerworks.enums.AccountType;
 import com.ledger.ledgerworks.repository.ContraVoucherRepository;
 
 import org.slf4j.Logger;
@@ -16,6 +14,10 @@ import java.util.List;
 /**
  * Contra Voucher - cash &lt;-&gt; bank (asset to asset) transfer.
  * Ledger posting: debit the "to" account, credit the "from" account.
+ *
+ * Posting is delegated to {@link AccountingPostingService#postContra} so that
+ * the {@link com.ledger.ledgerworks.entity.LedgerTransaction} rows are the ONE
+ * source of truth - no direct LedgerAccount.balance mutation happens here.
  */
 @Service
 public class ContraVoucherService {
@@ -23,14 +25,17 @@ public class ContraVoucherService {
     private static final Logger log = LoggerFactory.getLogger(ContraVoucherService.class);
 
     private final ContraVoucherRepository repository;
-    private final VoucherPostingHelper postingHelper;
+    private final AccountingPostingService accountingPostingService;
+    private final FinancialYearService financialYearService;
     private final DocumentNumberService documentNumberService;
 
     public ContraVoucherService(ContraVoucherRepository repository,
-                                VoucherPostingHelper postingHelper,
+                                AccountingPostingService accountingPostingService,
+                                FinancialYearService financialYearService,
                                 DocumentNumberService documentNumberService) {
         this.repository = repository;
-        this.postingHelper = postingHelper;
+        this.accountingPostingService = accountingPostingService;
+        this.financialYearService = financialYearService;
         this.documentNumberService = documentNumberService;
     }
 
@@ -60,25 +65,24 @@ public class ContraVoucherService {
 
         ContraVoucher saved = repository.save(voucher);
 
-        // Best-effort ledger posting (never blocks the save)
+        // Balanced ledger posting on the voucher's own date (best-effort).
         postLedger(saved);
 
         return saved;
     }
 
     // =====================================================
-    // LEDGER: debit "to" account, credit "from" account
+    // LEDGER: Dr "to" account ; Cr "from" account
     // =====================================================
     private void postLedger(ContraVoucher voucher) {
         try {
-            LedgerAccount from = postingHelper.resolveAccount(voucher.getFromAccount(), AccountType.ASSET);
-            LedgerAccount to = postingHelper.resolveAccount(voucher.getToAccount(), AccountType.ASSET);
+            financialYearService.assertOpen(voucher.getDate());
 
-            String narration = (voucher.getNarration() != null && !voucher.getNarration().isBlank())
-                    ? voucher.getNarration()
-                    : "Contra " + voucher.getVoucherNumber();
-
-            postingHelper.post(to, from, voucher.getAmount(), narration);
+            accountingPostingService.postContra(
+                    voucher.getFromAccount(),
+                    voucher.getToAccount(),
+                    voucher.getAmount(),
+                    voucher.getDate());
         } catch (Exception ex) {
             log.warn("Contra voucher ledger posting skipped: {}", ex.getMessage());
         }

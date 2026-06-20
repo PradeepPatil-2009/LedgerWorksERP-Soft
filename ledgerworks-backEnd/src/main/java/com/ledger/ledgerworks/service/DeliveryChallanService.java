@@ -5,6 +5,8 @@ import com.ledger.ledgerworks.entity.*;
 import com.ledger.ledgerworks.enums.DocumentType;
 import com.ledger.ledgerworks.repository.DeliveryChallanRepository;
 
+import java.util.Map;
+
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
 
@@ -41,6 +43,55 @@ public class DeliveryChallanService {
 
     @Autowired
     private FinancialYearService financialYearService;
+
+    @Autowired
+    private CompanySettingsService companySettingsService;
+
+    @Autowired
+    private GstUtilityService gstUtilityService;
+
+    // Compact state-name -> GST code lookup for when a place-of-supply is
+    // supplied as a NAME (or the legacy "MH") rather than a GSTIN.
+    private static final Map<String, String> NAME_TO_CODE = Map.ofEntries(
+            Map.entry("jammu and kashmir", "01"),
+            Map.entry("himachal pradesh", "02"),
+            Map.entry("punjab", "03"),
+            Map.entry("chandigarh", "04"),
+            Map.entry("uttarakhand", "05"),
+            Map.entry("haryana", "06"),
+            Map.entry("delhi", "07"),
+            Map.entry("rajasthan", "08"),
+            Map.entry("uttar pradesh", "09"),
+            Map.entry("bihar", "10"),
+            Map.entry("sikkim", "11"),
+            Map.entry("arunachal pradesh", "12"),
+            Map.entry("nagaland", "13"),
+            Map.entry("manipur", "14"),
+            Map.entry("mizoram", "15"),
+            Map.entry("tripura", "16"),
+            Map.entry("meghalaya", "17"),
+            Map.entry("assam", "18"),
+            Map.entry("west bengal", "19"),
+            Map.entry("jharkhand", "20"),
+            Map.entry("odisha", "21"),
+            Map.entry("chhattisgarh", "22"),
+            Map.entry("madhya pradesh", "23"),
+            Map.entry("gujarat", "24"),
+            Map.entry("daman and diu", "25"),
+            Map.entry("dadra and nagar haveli", "26"),
+            Map.entry("maharashtra", "27"),
+            Map.entry("mh", "27"),
+            Map.entry("karnataka", "29"),
+            Map.entry("goa", "30"),
+            Map.entry("lakshadweep", "31"),
+            Map.entry("kerala", "32"),
+            Map.entry("tamil nadu", "33"),
+            Map.entry("puducherry", "34"),
+            Map.entry("andaman and nicobar islands", "35"),
+            Map.entry("telangana", "36"),
+            Map.entry("andhra pradesh", "37"),
+            Map.entry("ladakh", "38")
+    );
 
     // ================= CREATE =================
 
@@ -212,15 +263,8 @@ public class DeliveryChallanService {
 
         BigDecimal totalIGST = BigDecimal.ZERO;
 
-        String placeOfSupply =
-                c.getPlaceOfSupply() != null
-                        ? c.getPlaceOfSupply().trim()
-                        : "";
-
         boolean isIntraState =
-                placeOfSupply.equalsIgnoreCase("MH")
-                ||
-                placeOfSupply.equalsIgnoreCase("Maharashtra");
+                isIntraState(c);
 
         for (DeliveryChallanItem i : c.getItems()) {
 
@@ -322,6 +366,87 @@ public class DeliveryChallanService {
         return val != null
                 ? val
                 : BigDecimal.ZERO;
+    }
+
+    // ================= STATE / GST HEAD RESOLUTION =================
+    // Mirror the invoice foundation so a challan and the invoice converted from
+    // it never disagree on tax heads: derive the company's own state code from
+    // its configured GSTIN and compare it to the customer's place-of-supply
+    // code. CGST + SGST when both codes are known AND equal (intra-state); IGST
+    // otherwise (inter-state, or when either side's state cannot be resolved).
+
+    private boolean isIntraState(DeliveryChallan c) {
+
+        String companyCode = resolveCompanyStateCode();
+        String customerCode = resolveCustomerStateCode(c);
+
+        if (companyCode != null && customerCode != null) {
+            return companyCode.equals(customerCode);
+        }
+
+        // Legacy fallback (no company GSTIN configured): mirror
+        // GstCalculatorService.legacyIntraStateFallback so a challan and the
+        // invoice converted from it NEVER disagree on the tax heads. Without a
+        // configured company state we cannot trust a code comparison, so treat a
+        // Maharashtra place-of-supply (the previous default company state) as
+        // intra-state; anything else (including blank) is inter-state.
+        String place = c.getPlaceOfSupply();
+        return place != null && place.trim().equalsIgnoreCase("Maharashtra");
+    }
+
+    // Company's own state code from the configured GSTIN.
+    private String resolveCompanyStateCode() {
+
+        try {
+
+            CompanySettings settings =
+                    companySettingsService.getSettings();
+
+            if (settings == null) {
+                return null;
+            }
+
+            return gstUtilityService.codeFromGst(
+                    settings.getGstNumber()
+            );
+
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    // Customer place-of-supply code: prefer the customer GSTIN, then a
+    // GSTIN-like place-of-supply, then a state name (including the legacy "MH").
+    private String resolveCustomerStateCode(DeliveryChallan c) {
+
+        String fromGst =
+                gstUtilityService.codeFromGst(c.getCustomerGST());
+
+        if (fromGst != null) {
+            return fromGst;
+        }
+
+        String place = c.getPlaceOfSupply();
+
+        if (place == null) {
+            return null;
+        }
+
+        String trimmed = place.trim();
+
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        // A GSTIN-like place of supply (starts with 2 digits).
+        if (trimmed.length() >= 2
+                && Character.isDigit(trimmed.charAt(0))
+                && Character.isDigit(trimmed.charAt(1))) {
+
+            return trimmed.substring(0, 2);
+        }
+
+        return NAME_TO_CODE.get(trimmed.toLowerCase());
     }
 
     // ================= PDF =================

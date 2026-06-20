@@ -23,11 +23,34 @@ public class LedgerTransactionService {
 
     // =====================================================
     // ✅ GENERIC CREATE TRANSACTION (Used by Posting Layer)
+    //    Legacy signature - stamps the transaction with today's date.
+    //    Delegates to the dated overload with now().
     // =====================================================
     public void createTransaction(
             Long debitAccountId,
             Long creditAccountId,
             BigDecimal amount,
+            String narration) {
+
+        createTransaction(
+                debitAccountId,
+                creditAccountId,
+                amount,
+                LocalDate.now(),
+                narration);
+    }
+
+    // =====================================================
+    // ✅ DATED CREATE TRANSACTION (Document Posting Layer)
+    //    Stamps the transaction with the DOCUMENT's own date so the
+    //    ledger / reports reflect the document date, not the import time.
+    //    Falls back to today when date is null.
+    // =====================================================
+    public void createTransaction(
+            Long debitAccountId,
+            Long creditAccountId,
+            BigDecimal amount,
+            LocalDate date,
             String narration) {
 
         LedgerAccount debitAccount = accountRepository.findById(debitAccountId)
@@ -41,7 +64,7 @@ public class LedgerTransactionService {
         transaction.setCreditAccount(creditAccount);
         transaction.setAmount(amount);
         transaction.setNarration(narration);
-        transaction.setTransactionDate(LocalDate.now());
+        transaction.setTransactionDate(date != null ? date : LocalDate.now());
 
         transactionRepository.save(transaction);
     }

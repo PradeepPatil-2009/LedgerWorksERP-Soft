@@ -1,13 +1,12 @@
 package com.ledger.ledgerworks.service;
 
 import com.ledger.ledgerworks.entity.DebitNote;
-import com.ledger.ledgerworks.entity.LedgerAccount;
 import com.ledger.ledgerworks.repository.DebitNoteRepository;
-import com.ledger.ledgerworks.repository.LedgerAccountRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,17 +19,20 @@ public class DebitNoteService {
             LoggerFactory.getLogger(DebitNoteService.class);
 
     private final DebitNoteRepository repository;
-    private final LedgerAccountRepository accountRepository;
     private final DocumentNumberService documentNumberService;
+    private final AccountingPostingService accountingPostingService;
+    private final FinancialYearService financialYearService;
 
     public DebitNoteService(
             DebitNoteRepository repository,
-            LedgerAccountRepository accountRepository,
-            DocumentNumberService documentNumberService) {
+            DocumentNumberService documentNumberService,
+            AccountingPostingService accountingPostingService,
+            FinancialYearService financialYearService) {
 
         this.repository = repository;
-        this.accountRepository = accountRepository;
         this.documentNumberService = documentNumberService;
+        this.accountingPostingService = accountingPostingService;
+        this.financialYearService = financialYearService;
     }
 
     // ================= GET ALL =================
@@ -49,6 +51,7 @@ public class DebitNoteService {
 
     // ================= CREATE =================
 
+    @Transactional
     public DebitNote create(DebitNote note) {
 
         if (note.getAmount() == null) {
@@ -62,6 +65,10 @@ public class DebitNoteService {
         if (note.getDate() == null) {
             note.setDate(LocalDate.now());
         }
+
+        // ================= FINANCIAL YEAR LOCK CHECK =================
+
+        financialYearService.assertOpen(note.getDate());
 
         // ================= DOCUMENT NUMBER =================
 
@@ -87,7 +94,8 @@ public class DebitNoteService {
     }
 
     // =====================================================
-    // Reduce vendor outstanding (payable) by the note value.
+    // Purchase return: reverse the purchase on the note's own date
+    //   Dr vendor-creditor ; Cr Purchases (taxable) + Cr Input CGST/SGST/IGST
     // Best-effort: never block the save if posting fails.
     // =====================================================
 
@@ -95,37 +103,37 @@ public class DebitNoteService {
 
         try {
 
-            BigDecimal total = note.getAmount()
-                    .add(note.getGstAmount());
+            BigDecimal taxable = taxableValue(note);
+            BigDecimal cgst = nz(note.getCgstAmount());
+            BigDecimal sgst = nz(note.getSgstAmount());
+            BigDecimal igst = nz(note.getIgstAmount());
+            BigDecimal grandTotal = nz(note.getAmount()).add(nz(note.getGstAmount()));
 
-            if (note.getPartyName() == null
-                    || note.getPartyName().isBlank()) {
-                return;
-            }
-
-            LedgerAccount vendor = accountRepository
-                    .findByAccountName(note.getPartyName())
-                    .orElse(null);
-
-            if (vendor == null) {
-                log.info(
-                        "Debit note {}: no ledger account for '{}', skipping posting",
-                        note.getNoteNumber(), note.getPartyName());
-                return;
-            }
-
-            BigDecimal balance = vendor.getBalance() != null
-                    ? vendor.getBalance()
-                    : BigDecimal.ZERO;
-
-            vendor.setBalance(balance.subtract(total));
-
-            accountRepository.save(vendor);
+            accountingPostingService.postPurchaseReturn(
+                    note.getPartyName(),
+                    taxable, cgst, sgst, igst,
+                    grandTotal,
+                    note.getDate(),
+                    note.getNoteNumber());
 
         } catch (Exception ex) {
             log.warn(
                     "Debit note ledger posting failed for {}: {}",
                     note.getNoteNumber(), ex.getMessage());
         }
+    }
+
+    // Prefer the explicit taxable column; fall back to the legacy amount when
+    // only the older (amount + gstAmount) fields were supplied.
+    private static BigDecimal taxableValue(DebitNote note) {
+        BigDecimal taxable = nz(note.getTaxableValue());
+        if (taxable.signum() != 0) {
+            return taxable;
+        }
+        return nz(note.getAmount());
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
     }
 }

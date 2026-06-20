@@ -60,58 +60,130 @@ public interface LedgerTransactionRepository
 
 
     // =====================================================
-    // 3️⃣ PROFIT & LOSS (🔥 CORRECT LOGIC)
+    // 3️⃣ PROFIT & LOSS  (per-direction aggregation)
+    //
+    // A multi-leg journal is many rows sharing one side, so each posting
+    // direction must be summed independently and then netted:
+    //
+    //   INCOME  = credit-side income  - debit-side income
+    //   EXPENSE = debit-side expense  - credit-side expense
+    //
+    // Subtracting the opposite direction makes reversals / returns (which
+    // post on the contra side of the same account type) reduce the figure
+    // instead of inflating it.
     // =====================================================
 
     @Query("""
-    	    SELECT COALESCE(SUM(
-    	        CASE 
-    	            WHEN :type = com.ledger.ledgerworks.enums.AccountType.INCOME
-    	                 AND t.creditAccount.accountType = :type THEN t.amount
-
-    	            WHEN :type = com.ledger.ledgerworks.enums.AccountType.EXPENSE
-    	                 AND t.debitAccount.accountType = :type THEN t.amount
-
-    	            ELSE 0
-    	        END
-    	    ),0)
-    	    FROM LedgerTransaction t
-    	    WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
-    	    AND (:toDate IS NULL OR t.transactionDate <= :toDate)
-    	""")
-    	BigDecimal getProfitLossAmount(
-    	        @Param("type") AccountType type,
-    	        @Param("fromDate") LocalDate fromDate,
-    	        @Param("toDate") LocalDate toDate
-    	);
-
-    // =====================================================
-    // 4️⃣ BALANCE SHEET (🔥 CORRECT ACCOUNTING LOGIC)
-    // =====================================================
-
-    @Query("""
-        SELECT COALESCE(SUM(
-            CASE 
-                WHEN :type IN ('ASSET','EXPENSE') THEN
-                    CASE 
-                        WHEN t.debitAccount.accountType = :type THEN t.amount
-                        WHEN t.creditAccount.accountType = :type THEN -t.amount
-                        ELSE 0
-                    END
-                ELSE
-                    CASE 
-                        WHEN t.creditAccount.accountType = :type THEN t.amount
-                        WHEN t.debitAccount.accountType = :type THEN -t.amount
-                        ELSE 0
-                    END
-            END
-        ),0)
+        SELECT
+            COALESCE(SUM(CASE WHEN t.creditAccount.accountType = :type THEN t.amount ELSE 0 END), 0)
+          - COALESCE(SUM(CASE WHEN t.debitAccount.accountType  = :type THEN t.amount ELSE 0 END), 0)
         FROM LedgerTransaction t
         WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
-        AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
     """)
-    BigDecimal getBalanceByAccountType(
+    BigDecimal getIncomeTypeAmount(
             @Param("type") AccountType type,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+        SELECT
+            COALESCE(SUM(CASE WHEN t.debitAccount.accountType  = :type THEN t.amount ELSE 0 END), 0)
+          - COALESCE(SUM(CASE WHEN t.creditAccount.accountType = :type THEN t.amount ELSE 0 END), 0)
+        FROM LedgerTransaction t
+        WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+    """)
+    BigDecimal getExpenseTypeAmount(
+            @Param("type") AccountType type,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    // =====================================================
+    // 4️⃣ BALANCE SHEET  (per-direction aggregation)
+    //
+    // Debit-natured types (ASSET, EXPENSE) carry a debit balance:
+    //   balance = debit-side sum - credit-side sum
+    // Credit-natured types (LIABILITY, CAPITAL, INCOME) carry a credit
+    // balance: balance = credit-side sum - debit-side sum.
+    //
+    // Both directions are summed independently per account type, then netted.
+    // =====================================================
+
+    @Query("""
+        SELECT
+            COALESCE(SUM(CASE WHEN t.debitAccount.accountType  = :type THEN t.amount ELSE 0 END), 0)
+          - COALESCE(SUM(CASE WHEN t.creditAccount.accountType = :type THEN t.amount ELSE 0 END), 0)
+        FROM LedgerTransaction t
+        WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+    """)
+    BigDecimal getDebitBalanceByAccountType(
+            @Param("type") AccountType type,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+        SELECT
+            COALESCE(SUM(CASE WHEN t.creditAccount.accountType = :type THEN t.amount ELSE 0 END), 0)
+          - COALESCE(SUM(CASE WHEN t.debitAccount.accountType  = :type THEN t.amount ELSE 0 END), 0)
+        FROM LedgerTransaction t
+        WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+    """)
+    BigDecimal getCreditBalanceByAccountType(
+            @Param("type") AccountType type,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    // =====================================================
+    // 4️⃣b CASH FLOW  (movement on named cash/bank accounts)
+    //
+    // Net movement (debits - credits) over the period on a set of ledger
+    // accounts identified by name (e.g. "Cash", "Bank"). A positive result
+    // is a net cash inflow for the window.
+    // =====================================================
+
+    @Query("""
+        SELECT
+            COALESCE(SUM(CASE WHEN t.debitAccount.accountName  IN :accountNames THEN t.amount ELSE 0 END), 0)
+          - COALESCE(SUM(CASE WHEN t.creditAccount.accountName IN :accountNames THEN t.amount ELSE 0 END), 0)
+        FROM LedgerTransaction t
+        WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+    """)
+    BigDecimal getNetMovementForAccounts(
+            @Param("accountNames") List<String> accountNames,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+        SELECT
+            COALESCE(SUM(CASE WHEN t.debitAccount.accountName IN :accountNames THEN t.amount ELSE 0 END), 0)
+        FROM LedgerTransaction t
+        WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+    """)
+    BigDecimal getInflowForAccounts(
+            @Param("accountNames") List<String> accountNames,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+        SELECT
+            COALESCE(SUM(CASE WHEN t.creditAccount.accountName IN :accountNames THEN t.amount ELSE 0 END), 0)
+        FROM LedgerTransaction t
+        WHERE (:fromDate IS NULL OR t.transactionDate >= :fromDate)
+          AND (:toDate IS NULL OR t.transactionDate <= :toDate)
+    """)
+    BigDecimal getOutflowForAccounts(
+            @Param("accountNames") List<String> accountNames,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );

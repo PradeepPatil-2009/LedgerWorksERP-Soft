@@ -26,11 +26,11 @@ public class ProfitLossService {
         // =====================================================
 
         BigDecimal totalIncome =
-                transactionRepository.getProfitLossAmount(
+                transactionRepository.getIncomeTypeAmount(
                         AccountType.INCOME, fromDate, toDate);
 
         BigDecimal totalExpense =
-                transactionRepository.getProfitLossAmount(
+                transactionRepository.getExpenseTypeAmount(
                         AccountType.EXPENSE, fromDate, toDate);
 
         // =====================================================
