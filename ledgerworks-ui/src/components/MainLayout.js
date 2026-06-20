@@ -60,6 +60,7 @@ const NAV = [
       { to: "/outstanding", label: "Outstanding Report" },
       { to: "/gst-report", label: "GST Report" },
       { to: "/gst-analytics", label: "GST Analytics" },
+      { to: "/gst-returns", label: "GST Returns" },
     ],
   },
   {

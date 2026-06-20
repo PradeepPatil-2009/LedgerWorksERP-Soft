@@ -51,6 +51,7 @@ import Outstanding from "./pages/Outstanding";
 
 import GstReportPage from "./pages/GstReportPage";
 import GstAnalyticsPage from "./pages/GstAnalyticsPage";
+import GstReturnsPage from "./pages/GstReturnsPage";
 import BackupManagementPage from "./pages/BackupManagementPage";
 
 import CompanySettingsPage from "./pages/CompanySettingsPage";
@@ -277,6 +278,11 @@ function App() {
           <Route
             path="gst-analytics"
             element={<GstAnalyticsPage />}
+          />
+
+          <Route
+            path="gst-returns"
+            element={<GstReturnsPage />}
           />
 
           {/* NEW MODULES */}
