@@ -163,7 +163,7 @@ public interface LedgerTransactionRepository
 
     @Query("""
         SELECT new com.ledger.ledgerworks.dto.MonthlySummary(
-            FUNCTION('DATE_FORMAT', t.transactionDate, '%Y-%m'),
+            CAST(FUNCTION('DATE_FORMAT', t.transactionDate, '%Y-%m') AS string),
             SUM(t.amount)
         )
         FROM LedgerTransaction t
