@@ -727,6 +727,89 @@ async function run() {
     }
   });
 
+  // 16. COLUMN SORT (State Master) -------------------------------------
+  // One-click column sorting: clicking the "State Name" <th> sorts the
+  // (filtered) rows ascending; a second click flips to descending. Each
+  // click must change the FIRST visible data row's text. The header is the
+  // feature under test, so a missing header is a hard FAIL (never a skip).
+  await scenario("16. COLUMN SORT", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      await page.goto(`${BASE}/states`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("main").getByRole("heading", { name: "State Master" }).waitFor({ timeout: 10000 });
+
+      // Scope to the data table and wait for at least one real row to render.
+      const table = page.locator("main table").first();
+      await table.waitFor({ timeout: 10000 });
+      const rows = table.locator("tbody tr");
+      await rows.first().waitFor({ timeout: 10000 });
+
+      const firstRowText = async () =>
+        (await rows.first().innerText()).replace(/\s+/g, " ").trim();
+
+      // Sanity: there must be at least 2 distinct rows, otherwise sorting
+      // can't visibly reorder anything and the assertions are meaningless.
+      const rowCount = await rows.count();
+      assert(rowCount >= 2, `need >=2 rows to test sorting, got ${rowCount}`);
+
+      // Locate the clickable "State Name" column header. Prefer the ARIA
+      // columnheader role (a <th> rendered by SortableTh); fall back to a
+      // <th> matched by text. If neither exists, the feature is missing.
+      let header = table.getByRole("columnheader", { name: /State Name/i });
+      if ((await header.count()) === 0) {
+        header = table.locator("th", { hasText: /State Name/i });
+      }
+      assert(
+        (await header.count()) >= 1,
+        'sortable "State Name" column header not found — column sorting is not wired up on /states'
+      );
+      header = header.first();
+
+      // --- Click 1: ascending. First row text must change from the initial
+      //     (server) order.
+      const before = await firstRowText();
+      await header.click();
+      await page.waitForFunction(
+        ([text]) => {
+          const tr = document.querySelector("main table tbody tr");
+          if (!tr) return false;
+          return tr.innerText.replace(/\s+/g, " ").trim() !== text;
+        },
+        [before],
+        { timeout: 8000 }
+      ).catch(() => {});
+      const afterAsc = await firstRowText();
+      assert(
+        afterAsc !== before,
+        `first row should change after sorting ascending (before="${before}", after="${afterAsc}")`
+      );
+
+      // --- Click 2: descending. First row text must change again (asc -> desc
+      //     puts the opposite end of the alphabet on top).
+      await header.click();
+      await page.waitForFunction(
+        ([text]) => {
+          const tr = document.querySelector("main table tbody tr");
+          if (!tr) return false;
+          return tr.innerText.replace(/\s+/g, " ").trim() !== text;
+        },
+        [afterAsc],
+        { timeout: 8000 }
+      ).catch(() => {});
+      const afterDesc = await firstRowText();
+      assert(
+        afterDesc !== afterAsc,
+        `first row should change again after sorting descending (asc="${afterAsc}", desc="${afterDesc}")`
+      );
+    } finally {
+      await ctx.close();
+    }
+  });
+
   await browser.close();
 }
 

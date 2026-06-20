@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 const ROLES = ["ADMIN", "ACCOUNTANT", "USER", "VIEWER"];
 
@@ -13,6 +14,11 @@ function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const tc = useTableControls(users, {
+    searchKeys: ["username", "role"],
+    pageSize: 10,
+  });
+
   const {
     query,
     setQuery,
@@ -21,10 +27,7 @@ function UserManagement() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(users, {
-    searchKeys: ["username", "role"],
-    pageSize: 10,
-  });
+  } = tc;
 
   const [newUser, setNewUser] = useState({
     username: "",
@@ -164,9 +167,9 @@ function UserManagement() {
         <table border="1" style={{ margin: "0 auto" }}>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Username</th>
-              <th>Role</th>
+              <SortableTh field="id" controls={tc}>ID</SortableTh>
+              <SortableTh field="username" controls={tc}>Username</SortableTh>
+              <SortableTh field="role" controls={tc}>Role</SortableTh>
               <th>Change</th>
               <th>Delete</th>
             </tr>

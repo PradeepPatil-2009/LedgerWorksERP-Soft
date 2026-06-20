@@ -8,6 +8,8 @@ import { useTableControls } from "../components/useTableControls";
 
 import Pagination from "../components/Pagination";
 
+import SortableTh from "../components/SortableTh";
+
 function ConvertInvoicePage() {
 
   const toast = useToast();
@@ -20,11 +22,12 @@ function ConvertInvoicePage() {
 
   const [createdInvoice, setCreatedInvoice] = useState(null);
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(challans, {
-      searchKeys: ["challanNumber", "challanDate", "customerName", "status"],
-      pageSize: 10,
-    });
+  const tc = useTableControls(challans, {
+    searchKeys: ["challanNumber", "challanDate", "customerName", "status"],
+    pageSize: 10,
+  });
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   // ================= LOAD =================
 
@@ -160,10 +163,10 @@ function ConvertInvoicePage() {
             <thead>
 
               <tr>
-                <th>Challan No</th>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Grand Total</th>
+                <SortableTh field="challanNumber" controls={tc}>Challan No</SortableTh>
+                <SortableTh field="challanDate" controls={tc}>Date</SortableTh>
+                <SortableTh field="customerName" controls={tc}>Customer</SortableTh>
+                <SortableTh field="grandTotal" controls={tc}>Grand Total</SortableTh>
                 <th>Status</th>
                 <th>Action</th>
               </tr>

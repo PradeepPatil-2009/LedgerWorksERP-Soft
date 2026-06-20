@@ -4,6 +4,7 @@ import { getRole } from "../api/authToken";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 // =====================================================
 // Number Series Management (ADMIN only).
@@ -21,6 +22,11 @@ export default function NumberSeriesPage() {
   const [loading, setLoading] = useState(true);
   const [savingType, setSavingType] = useState(null);
 
+  const tc = useTableControls(series, {
+    searchKeys: ["documentType", "prefix"],
+    pageSize: 10,
+  });
+
   const {
     query,
     setQuery,
@@ -29,10 +35,7 @@ export default function NumberSeriesPage() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(series, {
-    searchKeys: ["documentType", "prefix"],
-    pageSize: 10,
-  });
+  } = tc;
 
   useEffect(() => {
     loadSeries();
@@ -121,10 +124,10 @@ export default function NumberSeriesPage() {
         <table border="1" cellPadding="5">
           <thead>
             <tr>
-              <th>Document Type</th>
-              <th>Prefix</th>
-              <th>Current Number</th>
-              <th>Padding</th>
+              <SortableTh field="documentType" controls={tc}>Document Type</SortableTh>
+              <SortableTh field="prefix" controls={tc}>Prefix</SortableTh>
+              <SortableTh field="currentNumber" controls={tc}>Current Number</SortableTh>
+              <SortableTh field="padding" controls={tc}>Padding</SortableTh>
               <th>Next (preview)</th>
               <th>Action</th>
             </tr>

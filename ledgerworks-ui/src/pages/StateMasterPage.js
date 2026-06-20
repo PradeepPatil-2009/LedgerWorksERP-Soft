@@ -4,12 +4,18 @@ import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 export default function StateMasterPage() {
 
   const toast = useToast();
 
   const [states, setStates] = useState([]);
+
+  const tc = useTableControls(states, {
+    searchKeys: ["stateName", "stateCode"],
+    pageSize: 10,
+  });
 
   const {
     query,
@@ -19,10 +25,7 @@ export default function StateMasterPage() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(states, {
-    searchKeys: ["stateName", "stateCode"],
-    pageSize: 10,
-  });
+  } = tc;
 
   const [loading, setLoading] = useState(false);
 
@@ -239,10 +242,10 @@ export default function StateMasterPage() {
             <thead>
 
               <tr>
-                <th>ID</th>
-                <th>GST Code</th>
-                <th>State Name</th>
-                <th>Active</th>
+                <SortableTh field="id" controls={tc}>ID</SortableTh>
+                <SortableTh field="stateCode" controls={tc}>GST Code</SortableTh>
+                <SortableTh field="stateName" controls={tc}>State Name</SortableTh>
+                <SortableTh field="active" controls={tc}>Active</SortableTh>
                 <th>Action</th>
               </tr>
 

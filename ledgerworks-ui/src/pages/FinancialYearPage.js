@@ -4,6 +4,7 @@ import { getRole } from "../api/authToken";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 // =====================================================
 // Financial Year Management (ADMIN only).
@@ -20,6 +21,11 @@ export default function FinancialYearPage() {
   const [years, setYears] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const tc = useTableControls(years, {
+    searchKeys: ["name", "startDate", "endDate"],
+    pageSize: 10,
+  });
+
   const {
     query,
     setQuery,
@@ -28,10 +34,7 @@ export default function FinancialYearPage() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(years, {
-    searchKeys: ["name", "startDate", "endDate"],
-    pageSize: 10,
-  });
+  } = tc;
 
   const [form, setForm] = useState({
     name: "",
@@ -182,12 +185,12 @@ export default function FinancialYearPage() {
         <table border="1" cellPadding="5">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Active</th>
-              <th>Locked</th>
+              <SortableTh field="id" controls={tc}>ID</SortableTh>
+              <SortableTh field="name" controls={tc}>Name</SortableTh>
+              <SortableTh field="startDate" controls={tc}>Start Date</SortableTh>
+              <SortableTh field="endDate" controls={tc}>End Date</SortableTh>
+              <SortableTh field="active" controls={tc}>Active</SortableTh>
+              <SortableTh field="locked" controls={tc}>Locked</SortableTh>
               <th>Actions</th>
             </tr>
           </thead>

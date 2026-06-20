@@ -4,6 +4,7 @@ import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 export default function ItemMasterPage() {
 
@@ -14,6 +15,11 @@ export default function ItemMasterPage() {
   // Configured GST slabs offered as quick-pick options for the GST % field.
   const [gstRates, setGstRates] = useState([]);
 
+  const tc = useTableControls(items, {
+    searchKeys: ["itemCode", "itemName", "hsnCode", "unit", "category", "status"],
+    pageSize: 10,
+  });
+
   const {
     query,
     setQuery,
@@ -22,10 +28,7 @@ export default function ItemMasterPage() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(items, {
-    searchKeys: ["itemCode", "itemName", "hsnCode", "unit", "category", "status"],
-    pageSize: 10,
-  });
+  } = tc;
 
   const [form, setForm] = useState({
     itemCode: "",
@@ -282,18 +285,18 @@ export default function ItemMasterPage() {
         <thead>
 
           <tr>
-            <th>ID</th>
-            <th>Item Code</th>
-            <th>Item Name</th>
-            <th>HSN</th>
-            <th>Unit</th>
-            <th>Purchase Rate</th>
-            <th>Sale Rate</th>
-            <th>GST%</th>
-            <th>Stock</th>
-            <th>Min Stock</th>
-            <th>Category</th>
-            <th>Status</th>
+            <SortableTh field="id" controls={tc}>ID</SortableTh>
+            <SortableTh field="itemCode" controls={tc}>Item Code</SortableTh>
+            <SortableTh field="itemName" controls={tc}>Item Name</SortableTh>
+            <SortableTh field="hsnCode" controls={tc}>HSN</SortableTh>
+            <SortableTh field="unit" controls={tc}>Unit</SortableTh>
+            <SortableTh field="purchaseRate" controls={tc}>Purchase Rate</SortableTh>
+            <SortableTh field="saleRate" controls={tc}>Sale Rate</SortableTh>
+            <SortableTh field="gstPercent" controls={tc}>GST%</SortableTh>
+            <SortableTh field="currentStock" controls={tc}>Stock</SortableTh>
+            <SortableTh field="minimumStock" controls={tc}>Min Stock</SortableTh>
+            <SortableTh field="category" controls={tc}>Category</SortableTh>
+            <SortableTh field="status" controls={tc}>Status</SortableTh>
           </tr>
 
         </thead>

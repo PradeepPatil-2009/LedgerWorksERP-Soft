@@ -4,6 +4,7 @@ import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 // =====================================================
 // Payment Voucher - money paid TO a vendor.
@@ -26,11 +27,11 @@ function PaymentVoucherPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(vouchers, {
-      searchKeys: ["voucherNumber", "date", "partyName", "paymentMode", "reference", "narration"],
-      pageSize: 10,
-    });
+  const tc = useTableControls(vouchers, {
+    searchKeys: ["voucherNumber", "date", "partyName", "paymentMode", "reference", "narration"],
+    pageSize: 10,
+  });
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   // ================= LOAD =================
   const load = async () => {
@@ -180,13 +181,13 @@ function PaymentVoucherPage() {
         <table border="1" cellPadding="10" width="100%">
           <thead>
             <tr>
-              <th>Voucher No</th>
-              <th>Date</th>
-              <th>Party</th>
-              <th>Mode</th>
-              <th>Amount</th>
-              <th>Reference</th>
-              <th>Narration</th>
+              <SortableTh field="voucherNumber" controls={tc}>Voucher No</SortableTh>
+              <SortableTh field="date" controls={tc}>Date</SortableTh>
+              <SortableTh field="partyName" controls={tc}>Party</SortableTh>
+              <SortableTh field="paymentMode" controls={tc}>Mode</SortableTh>
+              <SortableTh field="amount" controls={tc}>Amount</SortableTh>
+              <SortableTh field="reference" controls={tc}>Reference</SortableTh>
+              <SortableTh field="narration" controls={tc}>Narration</SortableTh>
             </tr>
           </thead>
           <tbody>

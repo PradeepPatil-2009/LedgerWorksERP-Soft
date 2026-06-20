@@ -10,6 +10,7 @@ import API, {
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 function Vendor() {
 
@@ -19,6 +20,11 @@ function Vendor() {
 
   const [loading, setLoading] = useState(false);
 
+  const tc = useTableControls(vendors, {
+    searchKeys: ["name", "gstNumber", "phone", "email", "state", "address"],
+    pageSize: 10,
+  });
+
   const {
     query,
     setQuery,
@@ -27,10 +33,7 @@ function Vendor() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(vendors, {
-    searchKeys: ["name", "gstNumber", "phone", "email", "state", "address"],
-    pageSize: 10,
-  });
+  } = tc;
 
   const [form, setForm] = useState({
     name: "",
@@ -331,13 +334,13 @@ function Vendor() {
           <thead>
 
             <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>GST</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>State</th>
-              <th>Address</th>
+              <SortableTh field="id" controls={tc}>ID</SortableTh>
+              <SortableTh field="name" controls={tc}>Name</SortableTh>
+              <SortableTh field="gstNumber" controls={tc}>GST</SortableTh>
+              <SortableTh field="phone" controls={tc}>Phone</SortableTh>
+              <SortableTh field="email" controls={tc}>Email</SortableTh>
+              <SortableTh field="state" controls={tc}>State</SortableTh>
+              <SortableTh field="address" controls={tc}>Address</SortableTh>
               <th>Action</th>
             </tr>
 

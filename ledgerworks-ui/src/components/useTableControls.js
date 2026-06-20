@@ -3,23 +3,28 @@ import { useMemo, useState } from "react";
 // =====================================================
 // useTableControls
 //
-// Shared client-side SEARCH + PAGINATION for list tables.
+// Shared client-side SEARCH + SORT + PAGINATION for list tables.
 // Drop-in for any page that already holds rows in a state array.
 //
 // Usage:
+//   const controls = useTableControls(customers, {
+//     searchKeys: ["name", "gstNumber", "state", "phone"],
+//     pageSize: 10,
+//   });
 //   const {
 //     query, setQuery,
 //     page, setPage,
 //     totalPages, pageItems, total,
-//   } = useTableControls(customers, {
-//     searchKeys: ["name", "gstNumber", "state", "phone"],
-//     pageSize: 10,
-//   });
+//     sortKey, sortDir, toggleSort,   // <-- sorting
+//   } = controls;
 //
 //   // search box:
 //   <input value={query}
 //          onChange={(e) => setQuery(e.target.value)}
 //          placeholder="Search..." />
+//
+//   // sortable headers (see SortableTh.js) — pass the whole controls:
+//   <SortableTh field="name" controls={controls}>Name</SortableTh>
 //
 //   // render the page slice instead of the full array:
 //   pageItems.map((row) => ...)
@@ -34,6 +39,13 @@ import { useMemo, useState } from "react";
 //       * If searchKeys is non-empty, only those keys are matched.
 //       * If searchKeys is empty, every string-ish value of the row
 //         is matched.
+//   - Sort is applied to the FILTERED list BEFORE pagination, so
+//     pageItems reflects filter + sort + page.
+//   - toggleSort(key) cycles: a new key starts at 'asc'; the active
+//     key cycles 'asc' -> 'desc' -> cleared (sortKey null, sortDir null).
+//   - Comparator: null/undefined sort LAST in both directions; numeric
+//     values (or numeric strings) compare numerically, everything else
+//     by case-insensitive localeCompare. The sort is stable.
 //   - setQuery resets page back to 1.
 //   - page is clamped to [1, totalPages]; totalPages is at least 1.
 //   - pageItems is the slice for the current page; total is the
@@ -49,6 +61,44 @@ function toText(value) {
     return String(value);
   }
   return "";
+}
+
+// Treat actual numbers and numeric strings ("42", " 3.5 ") as numbers.
+function asNumber(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "") return null;
+    const num = Number(trimmed);
+    return Number.isFinite(num) ? num : null;
+  }
+  return null;
+}
+
+// Comparator for two cell values.
+//   - null/undefined always sort LAST (regardless of direction).
+//   - both numeric (number or numeric string) -> numeric compare.
+//   - otherwise -> case-insensitive localeCompare on string form.
+function compareValues(a, b) {
+  const aEmpty = a == null;
+  const bEmpty = b == null;
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1; // a is "bigger" so it lands last
+  if (bEmpty) return -1;
+
+  const an = asNumber(a);
+  const bn = asNumber(b);
+  if (an != null && bn != null) {
+    if (an < bn) return -1;
+    if (an > bn) return 1;
+    return 0;
+  }
+
+  return toText(a).localeCompare(toText(b), undefined, {
+    sensitivity: "base",
+  });
 }
 
 function rowMatches(row, needle, searchKeys) {
@@ -82,8 +132,29 @@ export function useTableControls(items, options = {}) {
 
   const [query, setQueryState] = useState("");
   const [page, setPageState] = useState(1);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState(null); // 'asc' | 'desc' | null
 
   const safeItems = Array.isArray(items) ? items : [];
+
+  // toggleSort cycles: new key -> asc; same key -> asc -> desc -> cleared.
+  const toggleSort = (key) => {
+    if (key == null) return;
+    if (key !== sortKey) {
+      setSortKey(key);
+      setSortDir("asc");
+      return;
+    }
+    if (sortDir === "asc") {
+      setSortDir("desc");
+    } else if (sortDir === "desc") {
+      setSortKey(null);
+      setSortDir(null);
+    } else {
+      // sortDir was null but key matched (defensive) -> restart at asc.
+      setSortDir("asc");
+    }
+  };
 
   // setQuery resets pagination back to the first page.
   const setQuery = (next) => {
@@ -101,7 +172,30 @@ export function useTableControls(items, options = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safeItems, query, size, JSON.stringify(searchKeys)]);
 
-  const total = filtered.length;
+  // Sort the FILTERED list before pagination. Stable: we sort an array
+  // of [row, index] pairs and fall back to the original index on ties.
+  const sorted = useMemo(() => {
+    if (!sortKey || (sortDir !== "asc" && sortDir !== "desc")) {
+      return filtered;
+    }
+    const factor = sortDir === "desc" ? -1 : 1;
+    const indexed = filtered.map((row, index) => [row, index]);
+    indexed.sort((a, b) => {
+      const av = a[0] == null ? undefined : a[0][sortKey];
+      const bv = b[0] == null ? undefined : b[0][sortKey];
+      const cmp = compareValues(av, bv);
+      // Empties always last, so don't flip them with direction.
+      if (av == null || bv == null) {
+        if (cmp !== 0) return cmp;
+        return a[1] - b[1];
+      }
+      if (cmp !== 0) return cmp * factor;
+      return a[1] - b[1];
+    });
+    return indexed.map((pair) => pair[0]);
+  }, [filtered, sortKey, sortDir]);
+
+  const total = sorted.length;
   const totalPages = Math.max(1, Math.ceil(total / size));
 
   // Clamp the page into a valid range whenever the data shrinks.
@@ -109,8 +203,8 @@ export function useTableControls(items, options = {}) {
 
   const pageItems = useMemo(() => {
     const start = (safePage - 1) * size;
-    return filtered.slice(start, start + size);
-  }, [filtered, safePage, size]);
+    return sorted.slice(start, start + size);
+  }, [sorted, safePage, size]);
 
   // setPage is clamped on the way in too, so callers can pass page +/- 1.
   const setPage = (next) => {
@@ -130,6 +224,9 @@ export function useTableControls(items, options = {}) {
     totalPages,
     pageItems,
     total,
+    sortKey,
+    sortDir,
+    toggleSort,
   };
 }
 

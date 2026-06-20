@@ -4,6 +4,7 @@ import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 // =====================================================
 // Contra Voucher - cash <-> bank transfer.
@@ -25,11 +26,11 @@ function ContraVoucherPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(vouchers, {
-      searchKeys: ["voucherNumber", "date", "fromAccount", "toAccount", "narration"],
-      pageSize: 10,
-    });
+  const tc = useTableControls(vouchers, {
+    searchKeys: ["voucherNumber", "date", "fromAccount", "toAccount", "narration"],
+    pageSize: 10,
+  });
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   // ================= LOAD =================
   const load = async () => {
@@ -171,12 +172,12 @@ function ContraVoucherPage() {
         <table border="1" cellPadding="10" width="100%">
           <thead>
             <tr>
-              <th>Voucher No</th>
-              <th>Date</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Amount</th>
-              <th>Narration</th>
+              <SortableTh field="voucherNumber" controls={tc}>Voucher No</SortableTh>
+              <SortableTh field="date" controls={tc}>Date</SortableTh>
+              <SortableTh field="fromAccount" controls={tc}>From</SortableTh>
+              <SortableTh field="toAccount" controls={tc}>To</SortableTh>
+              <SortableTh field="amount" controls={tc}>Amount</SortableTh>
+              <SortableTh field="narration" controls={tc}>Narration</SortableTh>
             </tr>
           </thead>
           <tbody>

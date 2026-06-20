@@ -10,6 +10,7 @@ import API, {
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 function Customer() {
 
@@ -17,6 +18,11 @@ function Customer() {
 
   const [customers, setCustomers] =
     useState([]);
+
+  const tc = useTableControls(customers, {
+    searchKeys: ["name", "gstNumber", "state", "phone"],
+    pageSize: 10,
+  });
 
   const {
     query,
@@ -26,10 +32,7 @@ function Customer() {
     totalPages,
     pageItems,
     total,
-  } = useTableControls(customers, {
-    searchKeys: ["name", "gstNumber", "state", "phone"],
-    pageSize: 10,
-  });
+  } = tc;
 
   const [form, setForm] = useState({
 
@@ -357,10 +360,10 @@ function Customer() {
         <thead>
 
           <tr>
-            <th>Name</th>
-            <th>GST</th>
-            <th>State</th>
-            <th>Phone</th>
+            <SortableTh field="name" controls={tc}>Name</SortableTh>
+            <SortableTh field="gstNumber" controls={tc}>GST</SortableTh>
+            <SortableTh field="state" controls={tc}>State</SortableTh>
+            <SortableTh field="phone" controls={tc}>Phone</SortableTh>
             <th>Action</th>
           </tr>
 

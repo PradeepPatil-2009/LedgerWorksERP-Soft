@@ -4,6 +4,7 @@ import { getInvoices } from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 function Invoice() {
 
@@ -11,16 +12,17 @@ function Invoice() {
 
   const [invoices, setInvoices] = useState([]);
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(invoices, {
-      searchKeys: [
-        "invoiceNumber",
-        "customerName",
-        "invoiceDate",
-        "paymentStatus",
-      ],
-      pageSize: 10,
-    });
+  const tc = useTableControls(invoices, {
+    searchKeys: [
+      "invoiceNumber",
+      "customerName",
+      "invoiceDate",
+      "paymentStatus",
+    ],
+    pageSize: 10,
+  });
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   useEffect(() => {
     loadData();
@@ -129,17 +131,17 @@ function Invoice() {
         <thead>
           <tr>
 
-            <th>ID</th>
+            <SortableTh field="id" controls={tc}>ID</SortableTh>
 
-            <th>Invoice No</th>
+            <SortableTh field="invoiceNumber" controls={tc}>Invoice No</SortableTh>
 
-            <th>Customer</th>
+            <SortableTh field="customerName" controls={tc}>Customer</SortableTh>
 
-            <th>Date</th>
+            <SortableTh field="invoiceDate" controls={tc}>Date</SortableTh>
 
-            <th>Total</th>
+            <SortableTh field="grandTotal" controls={tc}>Total</SortableTh>
 
-            <th>Status</th>
+            <SortableTh field="paymentStatus" controls={tc}>Status</SortableTh>
 
             <th>PDF</th>
 

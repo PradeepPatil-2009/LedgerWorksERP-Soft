@@ -3,6 +3,7 @@ import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 // =====================================================
 // Opening Stock entry.
@@ -31,11 +32,12 @@ export default function OpeningStockPage() {
 
   const [saving, setSaving] = useState(false);
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(entries, {
-      searchKeys: ["itemName", "hsnCode", "unit", "asOfDate"],
-      pageSize: 10,
-    });
+  const tc = useTableControls(entries, {
+    searchKeys: ["itemName", "hsnCode", "unit", "asOfDate"],
+    pageSize: 10,
+  });
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   // ================= LOAD =================
 
@@ -211,14 +213,14 @@ export default function OpeningStockPage() {
 
           <thead>
             <tr style={{ background: "#f2f2f2" }}>
-              <th>ID</th>
-              <th>Item</th>
-              <th>HSN</th>
-              <th>Unit</th>
-              <th>Qty</th>
-              <th>Rate</th>
-              <th>Value</th>
-              <th>As Of Date</th>
+              <SortableTh field="id" controls={tc}>ID</SortableTh>
+              <SortableTh field="itemName" controls={tc}>Item</SortableTh>
+              <SortableTh field="hsnCode" controls={tc}>HSN</SortableTh>
+              <SortableTh field="unit" controls={tc}>Unit</SortableTh>
+              <SortableTh field="quantity" controls={tc}>Qty</SortableTh>
+              <SortableTh field="rate" controls={tc}>Rate</SortableTh>
+              <SortableTh field="value" controls={tc}>Value</SortableTh>
+              <SortableTh field="asOfDate" controls={tc}>As Of Date</SortableTh>
             </tr>
           </thead>
 

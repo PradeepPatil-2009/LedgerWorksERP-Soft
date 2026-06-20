@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import API from "../api/api";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 function ProductionList() {
 
     const [data, setData] =
         useState([]);
+
+    const tc = useTableControls(data, {
+        searchKeys: ["productionNumber", "productionDate", "remarks"],
+        pageSize: 10,
+    });
 
     const {
         query,
@@ -16,10 +22,7 @@ function ProductionList() {
         totalPages,
         pageItems,
         total,
-    } = useTableControls(data, {
-        searchKeys: ["productionNumber", "productionDate", "remarks"],
-        pageSize: 10,
-    });
+    } = tc;
 
     useEffect(() => {
 
@@ -113,13 +116,13 @@ function ProductionList() {
 
                     <tr>
 
-                        <th>
+                        <SortableTh field="productionNumber" controls={tc}>
                             Production No
-                        </th>
+                        </SortableTh>
 
-                        <th>
+                        <SortableTh field="productionDate" controls={tc}>
                             Date
-                        </th>
+                        </SortableTh>
 
                         <th>
                             FG Item
@@ -129,9 +132,9 @@ function ProductionList() {
                             Qty
                         </th>
 
-                        <th>
+                        <SortableTh field="remarks" controls={tc}>
                             Remarks
-                        </th>
+                        </SortableTh>
 
                         <th>
                             Actions

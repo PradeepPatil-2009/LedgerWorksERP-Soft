@@ -5,6 +5,7 @@ import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
+import SortableTh from "../components/SortableTh";
 
 function DebitNotePage() {
 
@@ -26,11 +27,11 @@ function DebitNotePage() {
     narration: "",
   });
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(notes, {
-      searchKeys: ["noteNumber", "date", "partyName", "invoiceReference", "reason"],
-      pageSize: 10,
-    });
+  const tc = useTableControls(notes, {
+    searchKeys: ["noteNumber", "date", "partyName", "invoiceReference", "reason"],
+    pageSize: 10,
+  });
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   useEffect(() => {
     loadNotes();
@@ -273,14 +274,14 @@ function DebitNotePage() {
             <thead>
 
               <tr>
-                <th>ID</th>
-                <th>Note No</th>
-                <th>Date</th>
-                <th>Party</th>
-                <th>Invoice Ref</th>
-                <th>Amount</th>
-                <th>GST</th>
-                <th>Reason</th>
+                <SortableTh field="id" controls={tc}>ID</SortableTh>
+                <SortableTh field="noteNumber" controls={tc}>Note No</SortableTh>
+                <SortableTh field="date" controls={tc}>Date</SortableTh>
+                <SortableTh field="partyName" controls={tc}>Party</SortableTh>
+                <SortableTh field="invoiceReference" controls={tc}>Invoice Ref</SortableTh>
+                <SortableTh field="amount" controls={tc}>Amount</SortableTh>
+                <SortableTh field="gstAmount" controls={tc}>GST</SortableTh>
+                <SortableTh field="reason" controls={tc}>Reason</SortableTh>
               </tr>
 
             </thead>

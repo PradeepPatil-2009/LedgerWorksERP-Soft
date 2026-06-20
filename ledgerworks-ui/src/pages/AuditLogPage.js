@@ -8,6 +8,8 @@ import { useTableControls } from "../components/useTableControls";
 
 import Pagination from "../components/Pagination";
 
+import SortableTh from "../components/SortableTh";
+
 function AuditLogPage() {
 
   const toast = useToast();
@@ -16,11 +18,12 @@ function AuditLogPage() {
 
   const [loading, setLoading] = useState(false);
 
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
-    useTableControls(logs, {
-      searchKeys: ["username", "action", "entityType", "detail"],
-      pageSize: 10,
-    });
+  const tc = useTableControls(logs, {
+    searchKeys: ["username", "action", "entityType", "detail"],
+    pageSize: 10,
+  });
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
 
   // ================= LOAD =================
 
@@ -105,11 +108,11 @@ function AuditLogPage() {
             <thead>
 
               <tr>
-                <th>Time</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Detail</th>
+                <SortableTh field="timestamp" controls={tc}>Time</SortableTh>
+                <SortableTh field="username" controls={tc}>User</SortableTh>
+                <SortableTh field="action" controls={tc}>Action</SortableTh>
+                <SortableTh field="entityType" controls={tc}>Entity</SortableTh>
+                <SortableTh field="detail" controls={tc}>Detail</SortableTh>
               </tr>
 
             </thead>
