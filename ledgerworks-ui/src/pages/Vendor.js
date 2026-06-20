@@ -8,6 +8,8 @@ import API, {
 } from "../api/api";
 
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 function Vendor() {
 
@@ -17,7 +19,18 @@ function Vendor() {
 
   const [loading, setLoading] = useState(false);
 
-  const [search, setSearch] = useState("");
+  const {
+    query,
+    setQuery,
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+  } = useTableControls(vendors, {
+    searchKeys: ["name", "gstNumber", "phone", "email", "state", "address"],
+    pageSize: 10,
+  });
 
   const [form, setForm] = useState({
     name: "",
@@ -213,20 +226,6 @@ function Vendor() {
     }
   };
 
-  // ================= FILTER =================
-
-  const filtered = vendors.filter((v) => {
-
-    const keyword = search.toLowerCase();
-
-    return (
-      v?.name?.toLowerCase().includes(keyword) ||
-      v?.email?.toLowerCase().includes(keyword) ||
-      v?.phone?.toLowerCase().includes(keyword) ||
-      v?.gstNumber?.toLowerCase().includes(keyword)
-    );
-  });
-
   return (
 
     <div>
@@ -310,23 +309,10 @@ function Vendor() {
       <h3>Search</h3>
 
       <input
-        placeholder="Search name/email/gst"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
       />
-
-      <button onClick={loadVendors}>
-        Search
-      </button>
-
-      <button
-        onClick={() => {
-          setSearch("");
-          loadVendors();
-        }}
-      >
-        Clear
-      </button>
 
       <hr />
 
@@ -359,9 +345,9 @@ function Vendor() {
 
           <tbody>
 
-            {filtered.length > 0 ? (
+            {pageItems.length > 0 ? (
 
-              filtered.map((v) => (
+              pageItems.map((v) => (
 
                 <tr key={v.id}>
 
@@ -416,6 +402,14 @@ function Vendor() {
 
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
 
     </div>
   );

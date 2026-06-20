@@ -2,13 +2,25 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { getInvoices } from "../api/api";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 function Invoice() {
 
   const toast = useToast();
 
   const [invoices, setInvoices] = useState([]);
-  const [search, setSearch] = useState("");
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(invoices, {
+      searchKeys: [
+        "invoiceNumber",
+        "customerName",
+        "invoiceDate",
+        "paymentStatus",
+      ],
+      pageSize: 10,
+    });
 
   useEffect(() => {
     loadData();
@@ -84,15 +96,6 @@ function Invoice() {
     }
   };
 
-  // FILTER
-
-  const filtered = invoices.filter(
-    (inv) =>
-      inv.customerName
-        ?.toLowerCase()
-        .includes(search.toLowerCase())
-  );
-
   return (
     <div>
 
@@ -101,10 +104,10 @@ function Invoice() {
       {/* SEARCH */}
 
       <input
-        placeholder="Search Customer"
-        value={search}
+        placeholder="Search..."
+        value={query}
         onChange={(e) =>
-          setSearch(e.target.value)
+          setQuery(e.target.value)
         }
       />
 
@@ -145,7 +148,7 @@ function Invoice() {
 
         <tbody>
 
-          {filtered.map((i) => (
+          {pageItems.map((i) => (
 
             <tr key={i.id}>
 
@@ -194,6 +197,14 @@ function Invoice() {
       </table>
 
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
 
     </div>
   );

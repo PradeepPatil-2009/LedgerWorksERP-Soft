@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import API from "../api/api";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 // =====================================================
 // Receipt Voucher - money received FROM a customer.
@@ -23,6 +25,12 @@ function ReceiptVoucherPage() {
   const [vouchers, setVouchers] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(vouchers, {
+      searchKeys: ["voucherNumber", "date", "partyName", "paymentMode", "reference", "narration"],
+      pageSize: 10,
+    });
 
   // ================= LOAD =================
   const load = async () => {
@@ -163,6 +171,13 @@ function ReceiptVoucherPage() {
 
       <br />
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       <div style={{ overflowX: "auto" }}>
         <table border="1" cellPadding="10" width="100%">
           <thead>
@@ -177,8 +192,8 @@ function ReceiptVoucherPage() {
             </tr>
           </thead>
           <tbody>
-            {vouchers.length > 0 ? (
-              vouchers.map((v) => (
+            {pageItems.length > 0 ? (
+              pageItems.map((v) => (
                 <tr key={v.id}>
                   <td>{v.voucherNumber}</td>
                   <td>{v.date}</td>
@@ -197,6 +212,14 @@ function ReceiptVoucherPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
     </div>
   );
 }

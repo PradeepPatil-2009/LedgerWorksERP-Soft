@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import API from "../api/api";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 // =====================================================
 // Contra Voucher - cash <-> bank transfer.
@@ -22,6 +24,12 @@ function ContraVoucherPage() {
   const [vouchers, setVouchers] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(vouchers, {
+      searchKeys: ["voucherNumber", "date", "fromAccount", "toAccount", "narration"],
+      pageSize: 10,
+    });
 
   // ================= LOAD =================
   const load = async () => {
@@ -152,6 +160,13 @@ function ContraVoucherPage() {
 
       <br />
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       <div style={{ overflowX: "auto" }}>
         <table border="1" cellPadding="10" width="100%">
           <thead>
@@ -165,8 +180,8 @@ function ContraVoucherPage() {
             </tr>
           </thead>
           <tbody>
-            {vouchers.length > 0 ? (
-              vouchers.map((v) => (
+            {pageItems.length > 0 ? (
+              pageItems.map((v) => (
                 <tr key={v.id}>
                   <td>{v.voucherNumber}</td>
                   <td>{v.date}</td>
@@ -184,6 +199,14 @@ function ContraVoucherPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
     </div>
   );
 }

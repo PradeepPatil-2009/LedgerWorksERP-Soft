@@ -23,6 +23,22 @@ documents**: **Receipt / Payment / Contra vouchers**, **Credit / Debit notes**,
 **Invoice-from-Delivery-Challan**, and an **Audit Log**. Authentication is JWT-based with
 role-based authorization.
 
+## Screenshots
+
+Captured from a real Chrome session (Playwright) driving the running app — login through
+every feature. The full sequence (40 images) is in [`docs/screenshots/`](docs/screenshots).
+
+| Login | Dashboard |
+| --- | --- |
+| ![Login](docs/screenshots/01-Login.png) | ![Dashboard](docs/screenshots/02-Dashboard.png) |
+
+| State Master (search + pagination) | Customers |
+| --- | --- |
+| ![State Master](docs/screenshots/08-State-Master.png) | ![Customers](docs/screenshots/03-Customers.png) |
+
+> Regenerate anytime with `bash e2e/run-e2e.sh` (boots the backend on MySQL, serves the
+> production build, and walks Chrome through all routes).
+
 ## Prerequisites
 
 - **Java 17** (JDK)

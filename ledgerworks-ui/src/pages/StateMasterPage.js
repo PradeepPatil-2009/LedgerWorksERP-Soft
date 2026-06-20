@@ -2,12 +2,27 @@ import { useEffect, useState } from "react";
 
 import API from "../api/api";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 export default function StateMasterPage() {
 
   const toast = useToast();
 
   const [states, setStates] = useState([]);
+
+  const {
+    query,
+    setQuery,
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+  } = useTableControls(states, {
+    searchKeys: ["stateName", "stateCode"],
+    pageSize: 10,
+  });
 
   const [loading, setLoading] = useState(false);
 
@@ -204,6 +219,13 @@ export default function StateMasterPage() {
 
       {/* ================= TABLE ================= */}
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       {loading ? (
 
         <p>Loading...</p>
@@ -228,9 +250,9 @@ export default function StateMasterPage() {
 
             <tbody>
 
-              {states.length > 0 ? (
+              {pageItems.length > 0 ? (
 
-                states.map((s) => (
+                pageItems.map((s) => (
 
                   <tr key={s.id}>
 
@@ -275,6 +297,14 @@ export default function StateMasterPage() {
 
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
 
     </div>
   );

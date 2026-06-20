@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 function UserManagement() {
   const navigate = useNavigate();
@@ -8,6 +10,19 @@ function UserManagement() {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const {
+    query,
+    setQuery,
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+  } = useTableControls(users, {
+    searchKeys: ["username", "role"],
+    pageSize: 10,
+  });
 
   const [newUser, setNewUser] = useState({
     username: "",
@@ -154,6 +169,13 @@ function UserManagement() {
 
       <br />
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       {/* TABLE */}
       <div className="table-scroll">
       <table border="1" style={{ margin: "0 auto" }}>
@@ -168,7 +190,7 @@ function UserManagement() {
         </thead>
 
         <tbody>
-          {users.map((u) => (
+          {pageItems.map((u) => (
             <tr key={u.id}>
               <td>{u.id}</td>
               <td>{u.username}</td>
@@ -192,6 +214,14 @@ function UserManagement() {
         </tbody>
       </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
     </div>
   );
 }

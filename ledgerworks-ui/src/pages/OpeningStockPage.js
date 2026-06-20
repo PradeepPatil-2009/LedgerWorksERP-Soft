@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import API from "../api/api";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 // =====================================================
 // Opening Stock entry.
@@ -28,6 +30,12 @@ export default function OpeningStockPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const [saving, setSaving] = useState(false);
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(entries, {
+      searchKeys: ["itemName", "hsnCode", "unit", "asOfDate"],
+      pageSize: 10,
+    });
 
   // ================= LOAD =================
 
@@ -178,6 +186,19 @@ export default function OpeningStockPage() {
 
       <hr />
 
+      {/* ================= SEARCH ================= */}
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search..."
+        />
+
+      </div>
+
       {/* ================= TABLE ================= */}
 
       <div style={{ overflowX: "auto" }}>
@@ -203,9 +224,9 @@ export default function OpeningStockPage() {
 
           <tbody>
 
-            {entries.length > 0 ? (
+            {pageItems.length > 0 ? (
 
-              entries.map((e) => (
+              pageItems.map((e) => (
 
                 <tr key={e.id}>
                   <td>{e.id}</td>
@@ -233,6 +254,14 @@ export default function OpeningStockPage() {
         </table>
 
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
 
     </div>
   );

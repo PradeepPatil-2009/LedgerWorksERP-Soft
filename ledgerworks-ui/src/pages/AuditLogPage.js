@@ -4,6 +4,10 @@ import API from "../api/api";
 
 import { useToast } from "../components/Toast";
 
+import { useTableControls } from "../components/useTableControls";
+
+import Pagination from "../components/Pagination";
+
 function AuditLogPage() {
 
   const toast = useToast();
@@ -11,6 +15,12 @@ function AuditLogPage() {
   const [logs, setLogs] = useState([]);
 
   const [loading, setLoading] = useState(false);
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(logs, {
+      searchKeys: ["username", "action", "entityType", "detail"],
+      pageSize: 10,
+    });
 
   // ================= LOAD =================
 
@@ -68,6 +78,14 @@ function AuditLogPage() {
           Refresh
         </button>
 
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search..."
+          style={{ marginLeft: "8px" }}
+        />
+
       </div>
 
       {loading ? (
@@ -98,9 +116,9 @@ function AuditLogPage() {
 
             <tbody>
 
-              {logs.length > 0 ? (
+              {pageItems.length > 0 ? (
 
-                logs.map((log) => (
+                pageItems.map((log) => (
 
                   <tr key={log.id}>
 
@@ -130,6 +148,14 @@ function AuditLogPage() {
             </tbody>
 
           </table>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPrev={() => setPage(page - 1)}
+            onNext={() => setPage(page + 1)}
+          />
 
         </div>
       )}

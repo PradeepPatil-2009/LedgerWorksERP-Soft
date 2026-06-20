@@ -4,6 +4,10 @@ import API from "../api/api";
 
 import { useToast } from "../components/Toast";
 
+import { useTableControls } from "../components/useTableControls";
+
+import Pagination from "../components/Pagination";
+
 function ConvertInvoicePage() {
 
   const toast = useToast();
@@ -15,6 +19,12 @@ function ConvertInvoicePage() {
   const [converting, setConverting] = useState(null);
 
   const [createdInvoice, setCreatedInvoice] = useState(null);
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(challans, {
+      searchKeys: ["challanNumber", "challanDate", "customerName", "status"],
+      pageSize: 10,
+    });
 
   // ================= LOAD =================
 
@@ -97,6 +107,14 @@ function ConvertInvoicePage() {
           Refresh
         </button>
 
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search..."
+          style={{ marginLeft: "8px" }}
+        />
+
       </div>
 
       {createdInvoice && (
@@ -154,9 +172,9 @@ function ConvertInvoicePage() {
 
             <tbody>
 
-              {challans.length > 0 ? (
+              {pageItems.length > 0 ? (
 
-                challans.map((dc) => (
+                pageItems.map((dc) => (
 
                   <tr key={dc.id}>
 
@@ -212,6 +230,14 @@ function ConvertInvoicePage() {
             </tbody>
 
           </table>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPrev={() => setPage(page - 1)}
+            onNext={() => setPage(page + 1)}
+          />
 
         </div>
       )}

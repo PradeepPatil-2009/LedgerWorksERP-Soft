@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import API from "../api/api";
 
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 function DebitNotePage() {
 
@@ -23,6 +25,12 @@ function DebitNotePage() {
     reason: "",
     narration: "",
   });
+
+  const { query, setQuery, page, setPage, totalPages, pageItems, total } =
+    useTableControls(notes, {
+      searchKeys: ["noteNumber", "date", "partyName", "invoiceReference", "reason"],
+      pageSize: 10,
+    });
 
   useEffect(() => {
     loadNotes();
@@ -253,6 +261,13 @@ function DebitNotePage() {
 
         <div style={{ overflowX: "auto" }}>
 
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search..."
+            style={{ marginBottom: "10px" }}
+          />
+
           <table border="1" cellPadding="5">
 
             <thead>
@@ -272,9 +287,9 @@ function DebitNotePage() {
 
             <tbody>
 
-              {notes.length > 0 ? (
+              {pageItems.length > 0 ? (
 
-                notes.map((n) => (
+                pageItems.map((n) => (
 
                   <tr key={n.id}>
 
@@ -312,6 +327,14 @@ function DebitNotePage() {
             </tbody>
 
           </table>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPrev={() => setPage(page - 1)}
+            onNext={() => setPage(page + 1)}
+          />
 
         </div>
       )}

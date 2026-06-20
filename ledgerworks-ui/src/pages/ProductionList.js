@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 import API from "../api/api";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 function ProductionList() {
 
     const [data, setData] =
         useState([]);
 
-    const [search, setSearch] =
-        useState("");
+    const {
+        query,
+        setQuery,
+        page,
+        setPage,
+        totalPages,
+        pageItems,
+        total,
+    } = useTableControls(data, {
+        searchKeys: ["productionNumber", "productionDate", "remarks"],
+        pageSize: 10,
+    });
 
     useEffect(() => {
 
@@ -68,16 +80,6 @@ function ProductionList() {
         }
     };
 
-    const filtered =
-        data.filter((d) =>
-
-            d.productionNumber
-                ?.toLowerCase()
-                .includes(
-                    search.toLowerCase()
-                )
-        );
-
     return (
 
         <div style={{ padding: "20px" }}>
@@ -87,10 +89,10 @@ function ProductionList() {
             </h2>
 
             <input
-                placeholder="Search Production No"
-                value={search}
+                placeholder="Search..."
+                value={query}
                 onChange={(e) =>
-                    setSearch(
+                    setQuery(
                         e.target.value
                     )
                 }
@@ -141,9 +143,9 @@ function ProductionList() {
 
                 <tbody>
 
-                    {filtered.length > 0 ? (
+                    {pageItems.length > 0 ? (
 
-                        filtered.map((p) => (
+                        pageItems.map((p) => (
 
                             <tr key={p.id}>
 
@@ -204,6 +206,14 @@ function ProductionList() {
                 </tbody>
 
             </table>
+
+            <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                onPrev={() => setPage(page - 1)}
+                onNext={() => setPage(page + 1)}
+            />
 
         </div>
     );

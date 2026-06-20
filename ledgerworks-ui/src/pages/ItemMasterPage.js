@@ -1,12 +1,27 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 export default function ItemMasterPage() {
 
   const toast = useToast();
 
   const [items, setItems] = useState([]);
+
+  const {
+    query,
+    setQuery,
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+  } = useTableControls(items, {
+    searchKeys: ["itemCode", "itemName", "hsnCode", "unit", "category", "status"],
+    pageSize: 10,
+  });
 
   const [form, setForm] = useState({
     itemCode: "",
@@ -224,6 +239,13 @@ export default function ItemMasterPage() {
 
       {/* ================= TABLE ================= */}
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       <div className="table-scroll">
 
       <table border="1" cellPadding="5">
@@ -249,9 +271,9 @@ export default function ItemMasterPage() {
 
         <tbody>
 
-          {items.length > 0 ? (
+          {pageItems.length > 0 ? (
 
-            items.map((i) => (
+            pageItems.map((i) => (
 
               <tr key={i.id}>
 
@@ -288,6 +310,14 @@ export default function ItemMasterPage() {
       </table>
 
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
 
     </div>
   );

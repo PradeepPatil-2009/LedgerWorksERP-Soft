@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import API from "../api/api";
 import { getRole } from "../api/authToken";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 // =====================================================
 // Number Series Management (ADMIN only).
@@ -18,6 +20,19 @@ export default function NumberSeriesPage() {
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingType, setSavingType] = useState(null);
+
+  const {
+    query,
+    setQuery,
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+  } = useTableControls(series, {
+    searchKeys: ["documentType", "prefix"],
+    pageSize: 10,
+  });
 
   useEffect(() => {
     loadSeries();
@@ -95,6 +110,13 @@ export default function NumberSeriesPage() {
         </p>
       )}
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       <div style={{ overflowX: "auto" }}>
         <table border="1" cellPadding="5">
           <thead>
@@ -108,8 +130,8 @@ export default function NumberSeriesPage() {
             </tr>
           </thead>
           <tbody>
-            {series.length > 0 ? (
-              series.map((row) => (
+            {pageItems.length > 0 ? (
+              pageItems.map((row) => (
                 <tr key={row.documentType}>
                   <td>{row.documentType}</td>
                   <td>
@@ -170,6 +192,14 @@ export default function NumberSeriesPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
     </div>
   );
 }

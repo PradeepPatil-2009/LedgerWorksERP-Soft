@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import API from "../api/api";
 import { getRole } from "../api/authToken";
 import { useToast } from "../components/Toast";
+import { useTableControls } from "../components/useTableControls";
+import Pagination from "../components/Pagination";
 
 // =====================================================
 // Financial Year Management (ADMIN only).
@@ -17,6 +19,19 @@ export default function FinancialYearPage() {
 
   const [years, setYears] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const {
+    query,
+    setQuery,
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+  } = useTableControls(years, {
+    searchKeys: ["name", "startDate", "endDate"],
+    pageSize: 10,
+  });
 
   const [form, setForm] = useState({
     name: "",
@@ -156,6 +171,13 @@ export default function FinancialYearPage() {
         </div>
       )}
 
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search..."
+        style={{ marginBottom: "10px" }}
+      />
+
       <div style={{ overflowX: "auto" }}>
         <table border="1" cellPadding="5">
           <thead>
@@ -170,8 +192,8 @@ export default function FinancialYearPage() {
             </tr>
           </thead>
           <tbody>
-            {years.length > 0 ? (
-              years.map((y) => (
+            {pageItems.length > 0 ? (
+              pageItems.map((y) => (
                 <tr key={y.id}>
                   <td>{y.id}</td>
                   <td>{y.name}</td>
@@ -203,6 +225,14 @@ export default function FinancialYearPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
     </div>
   );
 }
