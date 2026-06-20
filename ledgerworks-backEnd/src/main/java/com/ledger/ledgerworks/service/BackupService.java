@@ -43,6 +43,24 @@ public class BackupService {
 	@Value("${spring.datasource.password:}")
 	private String dbPassword;
 
+	// Allow only simple "*.sql" names; reject path separators and ".."
+	// so callers cannot traverse outside the backup directory.
+	private static final java.util.regex.Pattern SAFE_BACKUP_NAME =
+			java.util.regex.Pattern.compile("^[A-Za-z0-9_.-]+\\.sql$");
+
+	private boolean isValidBackupName(String fileName) {
+
+		if (fileName == null
+				|| fileName.contains("/")
+				|| fileName.contains("\\")
+				|| fileName.contains("..")) {
+
+			return false;
+		}
+
+		return SAFE_BACKUP_NAME.matcher(fileName).matches();
+	}
+
 	private String resolveDatabaseName() {
 
 		// Extract the schema name from a JDBC URL such as
@@ -203,6 +221,13 @@ public class BackupService {
 
         try {
 
+            if (!isValidBackupName(fileName)) {
+
+                return ResponseEntity
+                        .notFound()
+                        .build();
+            }
+
             Path path =
                     Paths.get(backupDir, fileName);
 
@@ -242,6 +267,11 @@ public class BackupService {
 
     public String deleteBackup(String fileName) {
 
+        if (!isValidBackupName(fileName)) {
+
+            return "Delete Failed";
+        }
+
         File file =
                 new File(backupDir, fileName);
 
@@ -259,6 +289,11 @@ public class BackupService {
             String fileName) {
 
         try {
+
+            if (!isValidBackupName(fileName)) {
+
+                return "Restore Failed";
+            }
 
             String backupFile =
                     backupDir + "/" + fileName;

@@ -7,9 +7,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -30,6 +32,7 @@ import com.ledger.ledgerworks.security.JwtAuthenticationFilter;
  * require the ADMIN role.</p>
  */
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -51,14 +54,12 @@ public class SecurityConfig {
                     // public authentication + API docs
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                    // documents opened by the browser via raw navigation (no bearer header possible)
-                    .requestMatchers(HttpMethod.GET,
-                            "/api/gst/export/**",
-                            "/api/backup/download/**").permitAll()
                     // role-restricted areas
                     .requestMatchers("/api/users/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/api/backup/**").hasRole("ADMIN")
-                    .requestMatchers("/api/backup/restore/**").hasRole("ADMIN")
+                    // all backup operations (download, restore, delete) are admin-only
+                    .requestMatchers("/api/backup/**").hasRole("ADMIN")
+                    // GST exports are limited to roles allowed to handle filings
+                    .requestMatchers(HttpMethod.GET, "/api/gst/export/**").hasAnyRole("ADMIN", "ACCOUNTANT")
                     // admin-only configuration + audit modules
                     .requestMatchers(HttpMethod.GET, "/api/company-settings/**").authenticated()
                     .requestMatchers("/api/company-settings/**").hasRole("ADMIN")
@@ -66,12 +67,28 @@ public class SecurityConfig {
                     .requestMatchers("/api/financial-years/**").hasRole("ADMIN")
                     .requestMatchers("/api/audit-logs/**").hasRole("ADMIN")
                     .requestMatchers("/api/import/**").hasRole("ADMIN")
+                    // writes are denied to read-only VIEWER accounts
+                    .requestMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "ACCOUNTANT", "USER")
+                    .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyRole("ADMIN", "ACCOUNTANT", "USER")
+                    .requestMatchers(HttpMethod.PATCH, "/api/**").hasAnyRole("ADMIN", "ACCOUNTANT", "USER")
+                    .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyRole("ADMIN", "ACCOUNTANT", "USER")
                     // everything else requires a valid token
                     .anyRequest().authenticated()
             )
+            .headers(headers -> headers
+                    .frameOptions(frame -> frame.sameOrigin())
+                    .contentTypeOptions(contentType -> {})
+                    .referrerPolicy(referrer -> referrer
+                            .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                    .contentSecurityPolicy(csp -> csp
+                            .policyDirectives("default-src 'self'; frame-ancestors 'none'; object-src 'none'")))
             .exceptionHandling(ex -> ex
+                    // 401 when no/invalid authentication; 403 when authenticated but
+                    // lacking the required role (e.g. a VIEWER attempting a write).
                     .authenticationEntryPoint((request, response, authException) ->
-                            response.sendError(401, "Unauthorized")))
+                            response.sendError(401, "Unauthorized"))
+                    .accessDeniedHandler((request, response, deniedException) ->
+                            response.sendError(403, "Forbidden")))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

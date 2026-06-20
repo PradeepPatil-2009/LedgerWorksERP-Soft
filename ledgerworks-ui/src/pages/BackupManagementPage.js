@@ -3,7 +3,7 @@ import React, {
     useEffect
 } from "react";
 
-import axios from "axios";
+import API from "../api/api";
 
 import { useToast } from "../components/Toast";
 
@@ -29,8 +29,8 @@ function BackupManagementPage() {
         try {
 
             const response =
-                await axios.get(
-                    "http://localhost:8080/api/backup/list"
+                await API.get(
+                    "/backup/list"
                 );
 
             setBackups(
@@ -51,8 +51,8 @@ function BackupManagementPage() {
         try {
 
             const response =
-                await axios.get(
-                    "http://localhost:8080/api/backup/create"
+                await API.get(
+                    "/backup/create"
                 );
 
             setMessage(
@@ -73,12 +73,62 @@ function BackupManagementPage() {
         }
     };
 
-    const downloadBackup = (fileName) => {
+    const downloadBackup = async (fileName) => {
 
-        window.open(
-            `http://localhost:8080/api/backup/download/${fileName}`,
-            "_blank"
-        );
+        try {
+
+            const response =
+                await API.get(
+                    "/backup/download/" +
+                        encodeURIComponent(fileName),
+                    {
+                        responseType: "blob"
+                    }
+                );
+
+            // CREATE BACKUP FILE
+
+            const file =
+                new Blob(
+                    [response.data],
+                    {
+                        type: "application/octet-stream"
+                    }
+                );
+
+            // CREATE DOWNLOAD LINK
+
+            const fileURL =
+                window.URL.createObjectURL(file);
+
+            const link =
+                document.createElement("a");
+
+            link.href = fileURL;
+
+            link.setAttribute(
+                "download",
+                fileName
+            );
+
+            document.body.appendChild(link);
+
+            // AUTO DOWNLOAD
+
+            link.click();
+
+            // CLEANUP
+
+            link.remove();
+
+            window.URL.revokeObjectURL(fileURL);
+
+        } catch (error) {
+
+            console.error(error);
+
+            toast.error("Download Failed");
+        }
     };
 
     const deleteBackup = async (
@@ -98,8 +148,9 @@ function BackupManagementPage() {
         try {
 
             const response =
-                await axios.delete(
-                    `http://localhost:8080/api/backup/delete/${fileName}`
+                await API.delete(
+                    "/backup/delete/" +
+                        encodeURIComponent(fileName)
                 );
 
             setMessage(
@@ -137,8 +188,9 @@ function BackupManagementPage() {
     try {
 
         const response =
-            await axios.post(
-                `http://localhost:8080/api/backup/restore/${fileName}`
+            await API.post(
+                "/backup/restore/" +
+                    encodeURIComponent(fileName)
             );
 
         setMessage(

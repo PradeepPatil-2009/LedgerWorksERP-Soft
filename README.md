@@ -14,7 +14,14 @@ production runs, material issues and production costing), **Delivery Challan**,
 **Accounting** (journal entries, ledger transactions, trial balance, balance sheet,
 profit & loss, cash flow), **GST** (GST reports and exports), **Reports** (aging,
 outstanding, ledger statements, dashboards), and **Backup** (data backup, download and
-restore). Authentication is JWT-based with role-based authorization.
+restore).
+
+It also includes **configuration & migration** modules — **Company Settings**, **State
+Master** (with GST state-code auto-detection), **Number Series**, **Financial Year**,
+**Data Import** (Excel/CSV) and **Opening Stock** — plus additional **accounting
+documents**: **Receipt / Payment / Contra vouchers**, **Credit / Debit notes**,
+**Invoice-from-Delivery-Challan**, and an **Audit Log**. Authentication is JWT-based with
+role-based authorization.
 
 ## Prerequisites
 
@@ -92,6 +99,33 @@ There are four roles:
 The **Users** management page and the **backup restore/delete** operations are
 **ADMIN-only**.
 
+## Configuring GST
+
+GST is configurable in several places:
+
+- **Per-item GST %** and **HSN** on the **Item Master** — invoices and purchases compute
+  tax from each item's rate.
+- **Company GST number** in **Company Settings**.
+- **GST state codes** in the **State Master**; the state for a GST number is auto-detected
+  via `GET /api/gst-utility/state?gst=<gstin>` (e.g. `27…` → *Maharashtra*).
+- GST reporting and exports under `/api/gst/**`.
+
+## Key API endpoints (Branch-Develop modules)
+
+| Module | Base endpoint | Access |
+| --- | --- | --- |
+| Company Settings | `/api/company-settings` | read: authenticated · write: `ADMIN` |
+| State Master | `/api/states` | authenticated |
+| GST state lookup | `/api/gst-utility/state` | authenticated |
+| Number Series | `/api/number-series` | `ADMIN` |
+| Financial Year | `/api/financial-years` | `ADMIN` |
+| Receipt / Payment / Contra vouchers | `/api/receipt-vouchers`, `/api/payment-vouchers`, `/api/contra-vouchers` | authenticated |
+| Credit / Debit notes | `/api/credit-notes`, `/api/debit-notes` | authenticated |
+| Data Import (Excel/CSV) | `/api/import/{customers,vendors,items}` | `ADMIN` |
+| Opening Stock | `/api/opening-stock` | authenticated |
+| Invoice from Delivery Challan | `POST /api/invoices/convert/{id}` | authenticated |
+| Audit Log | `/api/audit-logs` | `ADMIN` |
+
 ## Running Tests
 
 **Backend** (uses an in-memory H2 database — no MySQL required):
@@ -108,6 +142,29 @@ cd ledgerworks-ui
 npm test
 ```
 
+## Security
+
+The backend is stateless-JWT with role-based access control. Hardening applied on `develop`:
+
+- **AuthN/AuthZ**: every `/api/**` route requires a valid JWT (except login, Swagger, CORS preflight).
+  Method security is enabled (`@EnableMethodSecurity`) so `@PreAuthorize` rules are enforced.
+  **VIEWER is read-only** (write methods denied). **ADMIN-only**: user management, all backup
+  operations, company-settings writes, number series, financial years, audit logs, data import;
+  **GST exports** require ADMIN/ACCOUNTANT. Backup/GST downloads are authenticated (no longer public).
+- **Brute-force**: 5 failed logins per username → 15-minute lockout (HTTP 429).
+- **Secrets**: no JWT secret is committed — set `JWT_SECRET` in production (otherwise an ephemeral
+  random key is generated per boot and a warning is logged). The seeded admin password is overridable
+  via `ADMIN_PASSWORD` (dev default `admin123`) and is never logged — **change it for production**.
+- **Headers**: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy are set; SQL logging off.
+- **Input**: bean validation on payment input; Excel/CSV import enforces type/row/size caps and
+  formula-injection neutralization; backup filenames are validated against path traversal.
+- **Frontend**: the JWT is attached only to same-origin/API requests.
+
+### Recommended security follow-ups (not yet applied)
+- Move the JWT to an httpOnly, Secure cookie + refresh tokens + server-side revocation (currently localStorage).
+- Upgrade Spring Boot 3.2.5 → 3.3.x/3.4.x and bump jjwt/POI/openpdf for transitive CVE fixes.
+- Consolidate CORS to one source + externalize the allowed origin; add a password-complexity policy; disable Swagger in production.
+
 ## What changed on the `develop` branch
 
 - Restored the real Spring Boot backend (the `main` branch shipped an empty skeleton)
@@ -120,3 +177,9 @@ npm test
 - Added **SLF4J logging** across the backend.
 - Added UI **toast notifications** and a **responsive layout**.
 - Added **JUnit tests (H2)** for the backend and **frontend tests**.
+- Made the **Delivery-Challan PDF** a dispatch copy (Sr/Item/HSN/Qty only — no rates/tax).
+- Implemented the **Branch-Develop missing-features** modules (full-stack, each with
+  routes, role-gated navigation, JUnit/frontend tests, and verification on real MySQL):
+  Company Settings, State Master + GST auto-detection, Number Series, Financial Year,
+  Receipt/Payment/Contra vouchers, Credit/Debit notes, Data Import (Excel/CSV via Apache
+  POI), Opening Stock, Invoice-from-Delivery-Challan, and an AOP-based Audit Log.

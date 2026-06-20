@@ -3,6 +3,8 @@ package com.ledger.ledgerworks.controller;
 import com.ledger.ledgerworks.dto.InvoicePaymentRequest;
 import com.ledger.ledgerworks.service.InvoicePaymentService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,7 +26,7 @@ public class InvoicePaymentController {
 
     @PostMapping
     public String savePayment(
-            @RequestBody InvoicePaymentRequest request
+            @Valid @RequestBody InvoicePaymentRequest request
     ) {
 
         service.payInvoice(

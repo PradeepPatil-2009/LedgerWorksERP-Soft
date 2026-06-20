@@ -42,19 +42,48 @@ export function clearAuthSession() {
 
 let fetchPatched = false;
 
+// The origin of our backend API, computed once. Anything resolving to a
+// different origin is treated as third-party and never receives our JWT,
+// even if its URL happens to contain the substring "/api/".
+function getApiOrigin() {
+  if (typeof window === "undefined") return null;
+  const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
+  try {
+    return new URL(apiUrl, window.location.origin).origin;
+  } catch (e) {
+    return null;
+  }
+}
+
 function setupFetchAuth() {
   if (fetchPatched || typeof window === "undefined" || !window.fetch) return;
   fetchPatched = true;
 
   const originalFetch = window.fetch.bind(window);
+  const apiOrigin = getApiOrigin();
+  const pageOrigin = window.location.origin;
 
   window.fetch = (input, init = {}) => {
     const token = getToken();
     const url =
       typeof input === "string" ? input : (input && input.url) || "";
 
-    // Only attach the token to our own API calls.
-    if (token && url.includes("/api/")) {
+    // Resolve the request URL against the page origin so we can compare
+    // origins. Only attach the token when the request targets our API
+    // origin (or the page's own origin) — never a third-party URL that
+    // merely contains "/api/".
+    let sameTarget = false;
+    if (token) {
+      try {
+        const requestOrigin = new URL(url, window.location.origin).origin;
+        sameTarget =
+          requestOrigin === apiOrigin || requestOrigin === pageOrigin;
+      } catch (e) {
+        sameTarget = false;
+      }
+    }
+
+    if (token && sameTarget) {
       const headers = new Headers(
         init.headers ||
           (typeof input !== "string" ? input.headers : undefined) ||

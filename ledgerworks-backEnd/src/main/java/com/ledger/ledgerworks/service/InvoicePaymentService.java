@@ -39,6 +39,15 @@ public class InvoicePaymentService {
             String reference
     ) {
 
+        // GUARD: amount must be present and strictly positive
+
+        if (amount == null
+                || amount.compareTo(BigDecimal.ZERO) <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Payment amount must be greater than zero");
+        }
+
         Invoice invoice = invoiceRepository
                 .findByInvoiceNumber(invoiceNumber)
                 .orElseThrow(() ->

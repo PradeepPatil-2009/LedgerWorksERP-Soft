@@ -251,18 +251,45 @@ public class ImportService {
                 return excelParserService.parse(file);
             }
 
-            // Fall back: try Excel first, then CSV, so a mislabelled file
-            // still imports rather than failing outright.
-            try {
+            // Unknown / missing extension: only fall back to the Excel parser
+            // when the file actually looks like a ZIP-based .xlsx (magic bytes
+            // 50 4B 03 04). Otherwise reject rather than blindly trying both
+            // parsers on arbitrary content.
+            if (looksLikeXlsx(file)) {
                 return excelParserService.parse(file);
-            } catch (Exception ignored) {
-                return csvParserService.parse(file);
             }
+
+            result.addSkipped(
+                    "Unsupported file type: please upload a "
+                            + ".xlsx, .xls or .csv file");
+            return List.of();
 
         } catch (Exception ex) {
             result.addSkipped(
                     "Unable to read file: " + ex.getMessage());
             return List.of();
+        }
+    }
+
+    /**
+     * Returns true when the upload starts with the ZIP local-file-header magic
+     * bytes (50 4B 03 04) used by the .xlsx (OOXML) container format.
+     */
+    private boolean looksLikeXlsx(MultipartFile file) {
+
+        try (java.io.InputStream in = file.getInputStream()) {
+
+            byte[] magic = new byte[4];
+            int read = in.read(magic);
+
+            return read == 4
+                    && magic[0] == (byte) 0x50
+                    && magic[1] == (byte) 0x4B
+                    && magic[2] == (byte) 0x03
+                    && magic[3] == (byte) 0x04;
+
+        } catch (Exception ex) {
+            return false;
         }
     }
 

@@ -6,8 +6,11 @@ import {
 } from "react";
 
 import API from "../api/api";
+import { useToast } from "../components/Toast";
 
 export default function GstReportPage() {
+
+    const toast = useToast();
 
     // ================= STATE =================
 
@@ -154,14 +157,69 @@ export default function GstReportPage() {
         );
 
 
-    const exportExcel = () => {
+    const exportExcel = async () => {
 
-        window.open(
+        try {
 
-            `http://localhost:8080/api/gst/export/excel?fromDate=${fromDate}&toDate=${toDate}`,
+            const response =
+                await API.get(
+                    "/gst/export/excel",
+                    {
+                        params: {
+                            fromDate,
+                            toDate
+                        },
+                        responseType: "blob"
+                    }
+                );
 
-            "_blank"
-        );
+            // CREATE EXCEL FILE
+
+            const file =
+                new Blob(
+                    [response.data],
+                    {
+                        type:
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    }
+                );
+
+            // CREATE DOWNLOAD LINK
+
+            const fileURL =
+                window.URL.createObjectURL(file);
+
+            const link =
+                document.createElement("a");
+
+            link.href = fileURL;
+
+            link.setAttribute(
+                "download",
+                `gst-report-${fromDate}-to-${toDate}.xlsx`
+            );
+
+            document.body.appendChild(link);
+
+            // AUTO DOWNLOAD
+
+            link.click();
+
+            // CLEANUP
+
+            link.remove();
+
+            window.URL.revokeObjectURL(fileURL);
+
+        } catch (err) {
+
+            console.error(
+                "GST Excel Export Error",
+                err
+            );
+
+            toast.error("Excel export failed");
+        }
     };
     // ================= UI =================
 
