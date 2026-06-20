@@ -55,6 +55,9 @@ const ROUTES = [
   ["financial-years", "Financial-Years"],
   ["import", "Data-Import"],
   ["audit-logs", "Audit-Log"],
+  ["settings", "Settings"],
+  ["gst-rates-settings", "GST-Rates"],
+  ["change-password", "Change-Password"],
   ["backup-management", "Backup-Management"],
 ];
 
