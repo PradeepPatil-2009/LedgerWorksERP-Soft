@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { clearAuthSession, getRole, getUsername } from "../api/authToken";
 import { logoutUser } from "../api/api";
@@ -97,6 +97,8 @@ function MainLayout() {
   const isAdmin = role === "ADMIN";
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
 
   const [theme, setTheme] = useState(
     () => document.documentElement.dataset.theme || "light"
@@ -113,10 +115,23 @@ function MainLayout() {
     }
   }, [location.pathname, navigate]);
 
-  // Close the mobile drawer whenever the route changes.
+  // Close the mobile drawer and the user dropdown whenever the route changes.
   useEffect(() => {
     setSidebarOpen(false);
+    setUserMenuOpen(false);
   }, [location.pathname]);
+
+  // Close the user dropdown when clicking anywhere outside of it.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleMouseDown = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [userMenuOpen]);
 
   const handleLogout = async () => {
     // Revoke the refresh token and clear the server cookies first, then drop
@@ -201,13 +216,45 @@ function MainLayout() {
               {theme === "dark" ? "☀" : "☾"}
             </button>
             <span className="app-role-badge">{role}</span>
-            <span className="topbar-username">{username}</span>
-            <Link to="/change-password" className="topbar-link">
-              Change Password
-            </Link>
-            <button className="btn btn-danger btn-sm" onClick={handleLogout}>
-              Logout
-            </button>
+
+            <div className="user-menu" ref={userMenuRef}>
+              <button
+                className="user-chip"
+                onClick={() => setUserMenuOpen((o) => !o)}
+                aria-haspopup="true"
+                aria-expanded={userMenuOpen}
+              >
+                <span className="user-chip-avatar">
+                  {(username[0] || "U").toUpperCase()}
+                </span>
+                <span className="user-chip-name">{username}</span>
+                <span className="user-chip-caret" aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+
+              {userMenuOpen && (
+                <div className="user-menu-dropdown" role="menu">
+                  <Link to="/profile" className="user-menu-item" role="menuitem">
+                    Profile
+                  </Link>
+                  <Link
+                    to="/change-password"
+                    className="user-menu-item"
+                    role="menuitem"
+                  >
+                    Change Password
+                  </Link>
+                  <button
+                    className="user-menu-item user-menu-logout"
+                    onClick={handleLogout}
+                    role="menuitem"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

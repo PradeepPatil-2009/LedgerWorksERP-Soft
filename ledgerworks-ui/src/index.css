@@ -385,6 +385,95 @@ table tbody tr:hover {
   text-decoration: underline;
 }
 
+/* ===================================================== */
+/* USER MENU DROPDOWN                                     */
+/* ===================================================== */
+
+.user-menu {
+  position: relative;
+}
+
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 8px 4px 4px;
+  background: transparent;
+  border: 1px solid var(--lw-border);
+  border-radius: 999px;
+}
+
+.user-chip:hover {
+  background: var(--lw-surface-alt);
+}
+
+.user-chip-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--lw-primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.user-chip-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lw-text);
+  white-space: nowrap;
+}
+
+.user-chip-caret {
+  font-size: 11px;
+  color: var(--lw-muted);
+  line-height: 1;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--lw-surface);
+  border: 1px solid var(--lw-border);
+  border-radius: var(--lw-radius);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  padding: 6px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--lw-text);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background: var(--lw-surface-alt);
+}
+
+.user-menu-logout {
+  color: var(--lw-danger);
+  font-weight: 600;
+}
+
 .theme-toggle {
   background: transparent;
   border: 1px solid var(--lw-border);
@@ -599,6 +688,10 @@ table tbody tr:hover {
   }
 
   .topbar-link {
+    display: none;
+  }
+
+  .user-chip-name {
     display: none;
   }
 

@@ -61,4 +61,19 @@ public class RefreshTokenService {
             refreshTokenRepository.save(t);
         });
     }
+
+    /**
+     * Rotates a refresh token: if {@code oldTokenValue} is currently valid
+     * (existing, non-revoked, non-expired), revokes it and mints a brand-new
+     * token (new opaque UUID) for the same user, returning the new token.
+     * If the presented token is invalid/revoked/expired, returns
+     * {@link Optional#empty()} and nothing is changed.
+     */
+    public Optional<RefreshToken> rotate(String oldTokenValue) {
+        return validate(oldTokenValue).map(existing -> {
+            existing.setRevoked(true);
+            refreshTokenRepository.save(existing);
+            return create(existing.getUsername());
+        });
+    }
 }

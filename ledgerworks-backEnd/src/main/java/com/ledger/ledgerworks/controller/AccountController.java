@@ -2,6 +2,7 @@ package com.ledger.ledgerworks.controller;
 
 import com.ledger.ledgerworks.entity.User;
 import com.ledger.ledgerworks.repository.UserRepository;
+import com.ledger.ledgerworks.util.PasswordPolicy;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -47,6 +48,10 @@ public class AccountController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Current password is incorrect"));
         }
+
+        // Current password verified — now enforce the policy on the new password.
+        // (400 with the policy message, via BusinessExceptionHandler.)
+        PasswordPolicy.validate(request.getNewPassword());
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);

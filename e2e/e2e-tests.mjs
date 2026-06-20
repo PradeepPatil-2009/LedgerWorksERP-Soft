@@ -88,8 +88,9 @@ async function run() {
       await uiLogin(page);
       await page.waitForURL("**/dashboard", { timeout: 15000 });
       assert(page.url().endsWith("/dashboard"), `URL should end with /dashboard, got ${page.url()}`);
-      // Topbar shows the username and a Logout button.
-      await page.getByRole("button", { name: "Logout" }).waitFor({ timeout: 10000 });
+      // Topbar shows the username chip; opening it reveals the Logout action.
+      await page.locator(".user-menu .user-chip").click();
+      await page.getByRole("menuitem", { name: "Logout" }).waitFor({ timeout: 10000 });
       const bodyText = await page.locator("body").innerText();
       assert(/\badmin\b/i.test(bodyText), 'page should show "admin" after login');
     } finally {
@@ -233,7 +234,9 @@ async function run() {
       await uiLogin(page);
       await page.waitForURL("**/dashboard", { timeout: 15000 });
 
-      await page.getByRole("button", { name: "Logout" }).click();
+      // Logout now lives inside the topbar user-menu dropdown.
+      await page.locator(".user-menu .user-chip").click();
+      await page.getByRole("menuitem", { name: "Logout" }).click();
       await page.waitForURL("**/login", { timeout: 10000 });
       assert(page.url().endsWith("/login"), `after Logout URL should be /login, got ${page.url()}`);
 

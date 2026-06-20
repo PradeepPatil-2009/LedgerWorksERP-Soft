@@ -3,6 +3,14 @@ import { useState } from "react";
 import API from "../api/api";
 import { useToast } from "../components/Toast";
 
+// Client-side mirror of the server password policy. The server is the source
+// of truth (returns 400 on violation); this is just an early, friendly guard.
+const PASSWORD_HINT = "At least 8 characters, including a letter and a number.";
+
+function isValidPassword(pw) {
+  return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(pw || "");
+}
+
 // Change password — available to ANY authenticated user. The username is taken
 // from the JWT server-side, so we only send {oldPassword, newPassword}.
 export default function ChangePasswordPage() {
@@ -50,6 +58,15 @@ export default function ChangePasswordPage() {
       return;
     }
 
+    if (!isValidPassword(form.newPassword)) {
+
+      toast.error(
+        "Password must be at least 8 characters and include a letter and a number."
+      );
+
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -68,10 +85,16 @@ export default function ChangePasswordPage() {
       console.error(err);
 
       const status = err?.response?.status;
+      const serverMessage =
+        typeof err?.response?.data === "string"
+          ? err.response.data
+          : err?.response?.data?.message;
 
       if (status === 400) {
 
-        toast.error("Current password is incorrect");
+        // The server is the source of truth: it returns either the
+        // wrong-current-password message or the password-policy message.
+        toast.error(serverMessage || "Current password is incorrect");
 
       } else {
 
@@ -145,6 +168,16 @@ export default function ChangePasswordPage() {
             autoComplete="new-password"
             style={{ width: "100%" }}
           />
+
+          <div
+            style={{
+              fontSize: "12px",
+              color: "var(--lw-muted)",
+              marginTop: "4px",
+            }}
+          >
+            {PASSWORD_HINT}
+          </div>
 
         </div>
 

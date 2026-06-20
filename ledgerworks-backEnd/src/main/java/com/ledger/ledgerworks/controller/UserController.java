@@ -3,6 +3,7 @@ package com.ledger.ledgerworks.controller;
 import com.ledger.ledgerworks.entity.User;
 import com.ledger.ledgerworks.enums.Role;
 import com.ledger.ledgerworks.repository.UserRepository;
+import com.ledger.ledgerworks.util.PasswordPolicy;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
@@ -28,6 +29,9 @@ public class UserController {
     // ✅ 2. CREATE USER (PASSWORD ENCODED)
     @PostMapping
     public User createUser(@RequestBody User user) {
+
+        // 🔒 Enforce password policy before encoding+saving (400 on violation)
+        PasswordPolicy.validate(user.getPassword());
 
         // 🔐 Encode password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));

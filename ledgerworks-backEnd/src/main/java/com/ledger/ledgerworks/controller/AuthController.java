@@ -106,19 +106,27 @@ public class AuthController {
 
         String refreshValue = readCookie(request, REFRESH_COOKIE);
 
-        Optional<RefreshToken> valid = refreshTokenService.validate(refreshValue);
-        if (valid.isEmpty()) {
+        // ROTATION: validate + revoke the presented token and mint a fresh one.
+        // A replayed/revoked/expired refresh token yields empty -> 401.
+        Optional<RefreshToken> rotated = refreshTokenService.rotate(refreshValue);
+        if (rotated.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        User user = userRepository.findByUsername(valid.get().getUsername());
+        RefreshToken newRefresh = rotated.get();
+        User user = userRepository.findByUsername(newRefresh.getUsername());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+
+        // Set BOTH a fresh access cookie AND the new (rotated) refresh cookie.
         response.addHeader(HttpHeaders.SET_COOKIE,
                 buildCookie(ACCESS_COOKIE, token, jwtUtil.getExpiration() / 1000).toString());
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                buildCookie(REFRESH_COOKIE, newRefresh.getTokenValue(),
+                        jwtUtil.getRefreshExpiration() / 1000).toString());
 
         return ResponseEntity.ok(Map.of(
                 "username", user.getUsername(),

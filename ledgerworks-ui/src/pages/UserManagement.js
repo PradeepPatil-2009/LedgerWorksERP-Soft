@@ -7,6 +7,14 @@ import SortableTh from "../components/SortableTh";
 
 const ROLES = ["ADMIN", "ACCOUNTANT", "USER", "VIEWER"];
 
+// Client-side mirror of the server password policy. The server stays the
+// source of truth (returns 400 on violation); this is just an early guard.
+const PASSWORD_HINT = "At least 8 characters, including a letter and a number.";
+
+function isValidPassword(pw) {
+  return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(pw || "");
+}
+
 function UserManagement() {
   const navigate = useNavigate();
   const toast = useToast();
@@ -65,12 +73,27 @@ function UserManagement() {
       return;
     }
 
+    if (!isValidPassword(newUser.password)) {
+      toast.error(
+        "Password must be at least 8 characters and include a letter and a number."
+      );
+      return;
+    }
+
     try {
-      await fetch("http://localhost:8080/api/users", {
+      const res = await fetch("http://localhost:8080/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser),
       });
+
+      if (!res.ok) {
+        // The server is the source of truth — surface its 400 message
+        // (e.g. the password-policy text) when present.
+        const serverMessage = await res.text().catch(() => "");
+        toast.error(serverMessage || "Failed to create user");
+        return;
+      }
 
       toast.success("User Created");
       setNewUser({ username: "", password: "", role: "USER" });
@@ -151,6 +174,16 @@ function UserManagement() {
         </select>
 
         <button onClick={createUser}>Create</button>
+
+        <div
+          style={{
+            fontSize: "12px",
+            color: "var(--lw-muted)",
+            marginTop: "6px",
+          }}
+        >
+          {PASSWORD_HINT}
+        </div>
       </div>
 
       <br />

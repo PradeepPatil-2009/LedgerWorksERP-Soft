@@ -68,6 +68,7 @@ import AuditLogPage from "./pages/AuditLogPage";
 import ConvertInvoicePage from "./pages/ConvertInvoicePage";
 
 import ChangePasswordPage from "./pages/ChangePasswordPage";
+import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import GstRateSettingsPage from "./pages/GstRateSettingsPage";
 
@@ -346,6 +347,11 @@ function App() {
           />
 
           {/* ACCOUNT / SETTINGS */}
+
+          <Route
+            path="profile"
+            element={<ProfilePage />}
+          />
 
           <Route
             path="change-password"
