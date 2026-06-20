@@ -3,9 +3,8 @@ package com.ledger.ledgerworks.controller;
 import com.ledger.ledgerworks.entity.AuditLog;
 import com.ledger.ledgerworks.service.AuditLogService;
 
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/audit-logs")
@@ -17,9 +16,15 @@ public class AuditLogController {
         this.service = service;
     }
 
-    // GET ALL (newest first)
+    // GET (server-paginated, newest first). Optional free-text q filters
+    // action / entityType / actor (case-insensitive). ADMIN-only via
+    // SecurityConfig. Returns a Spring Data Page<AuditLog>.
     @GetMapping
-    public List<AuditLog> getAll() {
-        return service.getAll();
+    public Page<AuditLog> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q
+    ) {
+        return service.getPage(page, size, q);
     }
 }

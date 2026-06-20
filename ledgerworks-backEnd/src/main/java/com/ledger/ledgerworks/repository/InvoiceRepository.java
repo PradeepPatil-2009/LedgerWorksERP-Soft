@@ -5,6 +5,8 @@ import com.ledger.ledgerworks.dto.GstSummaryDto;
 import com.ledger.ledgerworks.dto.OutstandingRow;
 import com.ledger.ledgerworks.entity.Invoice;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -225,5 +227,24 @@ public interface InvoiceRepository
             LocalDate fromDate,
             LocalDate toDate
     );
-    
+
+    // =========================================
+    // PAGINATED FREE-TEXT SEARCH
+    // =========================================
+    // Case-insensitive substring match across the obvious text columns.
+    // Ordering comes from the Pageable.
+
+    @Query("""
+            SELECT i FROM Invoice i
+            WHERE LOWER(COALESCE(i.invoiceNumber, ''))  LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(i.customerName, ''))   LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(i.customerEmail, ''))  LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(i.customerPhone, ''))  LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(i.paymentStatus, ''))  LIKE LOWER(CONCAT('%', :q, '%'))
+            """)
+    Page<Invoice> searchPage(
+            @Param("q") String q,
+            Pageable pageable
+    );
+
 }

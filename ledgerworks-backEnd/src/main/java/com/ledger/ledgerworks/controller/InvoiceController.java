@@ -7,6 +7,10 @@ import com.ledger.ledgerworks.repository.InvoiceRepository;
 import com.ledger.ledgerworks.service.InvoiceService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +37,54 @@ public class InvoiceController {
 	public List<Invoice> getAll() {
 
 		return service.getAll();
+	}
+
+	// GET ALL INVOICES (server-paginated)
+	// Optional sort (e.g. "id,desc"; default id DESC so newly-created rows
+	// appear first) and free-text q across the obvious text columns.
+
+	@GetMapping("/page")
+	public Page<Invoice> getPage(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(required = false) String sort,
+			@RequestParam(required = false) String q) {
+
+		Pageable pageable = PageRequest.of(page, size, parseSort(sort));
+
+		if (q == null || q.isBlank()) {
+
+			return invoiceRepository.findAll(pageable);
+		}
+
+		return invoiceRepository.searchPage(q.trim(), pageable);
+	}
+
+	// Parse a "field,dir" sort param into a Sort. Defaults to id DESC so the
+	// newest rows surface first.
+
+	private Sort parseSort(String sort) {
+
+		if (sort == null || sort.isBlank()) {
+
+			return Sort.by(Sort.Order.desc("id"));
+		}
+
+		String[] parts = sort.split(",");
+
+		String field = parts[0].trim();
+
+		if (field.isEmpty()) {
+
+			field = "id";
+		}
+
+		Sort.Direction direction =
+				(parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim()))
+						? Sort.Direction.ASC
+						: Sort.Direction.DESC;
+
+		return Sort.by(direction, field);
 	}
 
 	// CREATE MANUAL INVOICE

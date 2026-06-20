@@ -1,58 +1,62 @@
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 
 import API from "../api/api";
 
 import { useToast } from "../components/Toast";
 
-import { useTableControls } from "../components/useTableControls";
+import { useServerTable } from "../components/useServerTable";
 
 import Pagination from "../components/Pagination";
 
-import SortableTh from "../components/SortableTh";
+// Audit Log is ADMIN-only and unbounded, so it reads one server page at a
+// time via the paginated GET /api/audit-logs (Spring Page) instead of the
+// client-side useTableControls used by the bounded list pages.
 
 function AuditLogPage() {
 
   const toast = useToast();
 
-  const [logs, setLogs] = useState([]);
+  // ================= FETCHER =================
+  // Resolves to a Spring Page ({ content, totalElements, totalPages, number }).
+  // Only meaningful params are sent: page 0 and an empty query are omitted so
+  // the server falls back to its own defaults (page 0, size 20). size matches
+  // the backend default and is left to the server too.
+  const fetchLogs = useCallback(
+    async ({ page, q }) => {
+      const params = {};
+      if (page) {
+        params.page = page;
+      }
+      if (q && q.trim() !== "") {
+        params.q = q;
+      }
 
-  const [loading, setLoading] = useState(false);
+      try {
+        const res =
+          Object.keys(params).length > 0
+            ? await API.get("/audit-logs", { params })
+            : await API.get("/audit-logs");
+        return res.data;
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load audit logs");
+        throw err;
+      }
+    },
+    [toast]
+  );
 
-  const tc = useTableControls(logs, {
-    searchKeys: ["username", "action", "entityType", "detail"],
-    pageSize: 10,
-  });
-
-  const { query, setQuery, page, setPage, totalPages, pageItems, total } = tc;
-
-  // ================= LOAD =================
-
-  const loadLogs = async () => {
-
-    setLoading(true);
-
-    try {
-
-      const res = await API.get("/audit-logs");
-
-      setLogs(Array.isArray(res.data) ? res.data : []);
-
-    } catch (err) {
-
-      console.error(err);
-
-      toast.error("Failed to load audit logs");
-
-    } finally {
-
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const {
+    rows,
+    page,
+    setPage,
+    totalPages,
+    total,
+    query,
+    setQuery,
+    loading,
+    reload,
+  } = useServerTable(fetchLogs, { pageSize: 20 });
 
   // ================= FORMAT =================
 
@@ -77,7 +81,7 @@ function AuditLogPage() {
 
       <div style={{ marginBottom: "10px" }}>
 
-        <button onClick={loadLogs}>
+        <button onClick={reload}>
           Refresh
         </button>
 
@@ -108,30 +112,33 @@ function AuditLogPage() {
             <thead>
 
               <tr>
-                <SortableTh field="timestamp" controls={tc}>Time</SortableTh>
-                <SortableTh field="username" controls={tc}>User</SortableTh>
-                <SortableTh field="action" controls={tc}>Action</SortableTh>
-                <SortableTh field="entityType" controls={tc}>Entity</SortableTh>
-                <SortableTh field="detail" controls={tc}>Detail</SortableTh>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Path</th>
+                <th>Detail</th>
               </tr>
 
             </thead>
 
             <tbody>
 
-              {pageItems.length > 0 ? (
+              {rows.length > 0 ? (
 
-                pageItems.map((log) => (
+                rows.map((log) => (
 
                   <tr key={log.id}>
 
                     <td>{formatTimestamp(log.timestamp)}</td>
 
-                    <td>{log.username}</td>
+                    <td>{log.actor || log.username}</td>
 
                     <td>{log.action}</td>
 
                     <td>{log.entityType}</td>
+
+                    <td>{log.requestUri}</td>
 
                     <td>{log.detail}</td>
 
@@ -141,7 +148,7 @@ function AuditLogPage() {
               ) : (
 
                 <tr>
-                  <td colSpan="5">
+                  <td colSpan="6">
                     No Audit Events Found
                   </td>
                 </tr>
@@ -153,7 +160,7 @@ function AuditLogPage() {
           </table>
 
           <Pagination
-            page={page}
+            page={page + 1}
             totalPages={totalPages}
             total={total}
             onPrev={() => setPage(page - 1)}
