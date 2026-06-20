@@ -59,6 +59,13 @@ public class SecurityConfig {
                     .requestMatchers("/api/users/**").hasRole("ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/backup/**").hasRole("ADMIN")
                     .requestMatchers("/api/backup/restore/**").hasRole("ADMIN")
+                    // admin-only configuration + audit modules
+                    .requestMatchers(HttpMethod.GET, "/api/company-settings/**").authenticated()
+                    .requestMatchers("/api/company-settings/**").hasRole("ADMIN")
+                    .requestMatchers("/api/number-series/**").hasRole("ADMIN")
+                    .requestMatchers("/api/financial-years/**").hasRole("ADMIN")
+                    .requestMatchers("/api/audit-logs/**").hasRole("ADMIN")
+                    .requestMatchers("/api/import/**").hasRole("ADMIN")
                     // everything else requires a valid token
                     .anyRequest().authenticated()
             )

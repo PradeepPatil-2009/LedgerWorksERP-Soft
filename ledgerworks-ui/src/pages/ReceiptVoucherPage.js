@@ -1,0 +1,204 @@
+import { useEffect, useState } from "react";
+
+import API from "../api/api";
+import { useToast } from "../components/Toast";
+
+// =====================================================
+// Receipt Voucher - money received FROM a customer.
+// Debit Cash/Bank, credit the customer (handled by backend).
+// =====================================================
+
+const EMPTY_FORM = {
+  date: new Date().toISOString().slice(0, 10),
+  partyName: "",
+  amount: "",
+  paymentMode: "CASH",
+  reference: "",
+  narration: "",
+};
+
+function ReceiptVoucherPage() {
+  const toast = useToast();
+
+  const [vouchers, setVouchers] = useState([]);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
+  // ================= LOAD =================
+  const load = async () => {
+    try {
+      const res = await API.get("/receipt-vouchers");
+      setVouchers(res.data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load receipt vouchers");
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ================= CHANGE =================
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const resetForm = () => setForm(EMPTY_FORM);
+
+  // ================= SAVE =================
+  const save = async () => {
+    if (!form.partyName) {
+      toast.error("Customer / Party name required");
+      return;
+    }
+
+    const amountNum = parseFloat(form.amount);
+    if (!amountNum || amountNum <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await API.post("/receipt-vouchers", {
+        date: form.date,
+        partyName: form.partyName,
+        amount: amountNum,
+        paymentMode: form.paymentMode,
+        reference: form.reference,
+        narration: form.narration,
+      });
+      toast.success("Receipt voucher saved");
+      resetForm();
+      load();
+    } catch (err) {
+      console.error(err);
+      toast.error("Error saving receipt voucher");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <h2>Receipt Voucher</h2>
+      <p style={{ color: "#666", marginTop: 0 }}>
+        Money received from a customer.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gap: "10px",
+          maxWidth: "420px",
+        }}
+      >
+        <label>
+          Date
+          <input
+            type="date"
+            name="date"
+            value={form.date}
+            onChange={handleChange}
+            style={{ width: "100%" }}
+          />
+        </label>
+
+        <input
+          name="partyName"
+          placeholder="Customer / Party Name"
+          value={form.partyName}
+          onChange={handleChange}
+        />
+
+        <input
+          name="amount"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Amount"
+          value={form.amount}
+          onChange={handleChange}
+        />
+
+        <label>
+          Payment Mode
+          <select
+            name="paymentMode"
+            value={form.paymentMode}
+            onChange={handleChange}
+            style={{ width: "100%" }}
+          >
+            <option value="CASH">Cash</option>
+            <option value="BANK">Bank</option>
+            <option value="UPI">UPI</option>
+          </select>
+        </label>
+
+        <input
+          name="reference"
+          placeholder="Reference (cheque / txn no.)"
+          value={form.reference}
+          onChange={handleChange}
+        />
+
+        <textarea
+          name="narration"
+          placeholder="Narration"
+          value={form.narration}
+          onChange={handleChange}
+        />
+
+        <div>
+          <button onClick={save} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </button>
+          <button onClick={resetForm} style={{ marginLeft: "10px" }}>
+            New
+          </button>
+        </div>
+      </div>
+
+      <br />
+
+      <div style={{ overflowX: "auto" }}>
+        <table border="1" cellPadding="10" width="100%">
+          <thead>
+            <tr>
+              <th>Voucher No</th>
+              <th>Date</th>
+              <th>Party</th>
+              <th>Mode</th>
+              <th>Amount</th>
+              <th>Reference</th>
+              <th>Narration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vouchers.length > 0 ? (
+              vouchers.map((v) => (
+                <tr key={v.id}>
+                  <td>{v.voucherNumber}</td>
+                  <td>{v.date}</td>
+                  <td>{v.partyName}</td>
+                  <td>{v.paymentMode}</td>
+                  <td>{v.amount}</td>
+                  <td>{v.reference}</td>
+                  <td>{v.narration}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7">No receipt vouchers found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export default ReceiptVoucherPage;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import {
+import API, {
   getVendors,
   saveVendor,
   updateVendor,
@@ -26,9 +26,41 @@ function Vendor() {
     email: "",
     address: "",
     state: "",
+    stateCode: "",
   });
 
   const [editId, setEditId] = useState(null);
+
+  // ============ GST AUTO STATE DETECTION ============
+
+  const autoFillStateFromGst = async (gst) => {
+
+    if (!gst || gst.trim().length < 2) {
+      return;
+    }
+
+    try {
+
+      const res = await API.get(
+        "/gst-utility/state",
+        { params: { gst } }
+      );
+
+      const { code, stateName } = res.data || {};
+
+      if (stateName) {
+
+        setForm((prev) => ({
+          ...prev,
+          state: stateName,
+          stateCode: code || prev.stateCode,
+        }));
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     loadVendors();
@@ -72,10 +104,16 @@ function Vendor() {
 
   const handleChange = (e) => {
 
+    const { name, value } = e.target;
+
     setForm({
       ...form,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    if (name === "gstNumber") {
+      autoFillStateFromGst(value);
+    }
   };
 
   // ================= RESET =================
@@ -89,6 +127,7 @@ function Vendor() {
       email: "",
       address: "",
       state: "",
+      stateCode: "",
     });
 
     setEditId(null);
@@ -143,6 +182,7 @@ function Vendor() {
       email: vendor.email || "",
       address: vendor.address || "",
       state: vendor.state || "",
+      stateCode: vendor.stateCode || "",
     });
 
     setEditId(vendor.id);

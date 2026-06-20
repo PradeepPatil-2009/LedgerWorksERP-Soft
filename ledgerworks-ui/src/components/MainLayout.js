@@ -113,6 +113,12 @@ function MainLayout() {
 
             <Link to="/backup-management">Backup Management</Link>
 
+            {isAdmin && <Link to="/company-settings">Company Settings</Link>}
+
+            <Link to="/states">State Master</Link>
+
+            <Link to="/opening-stock">Opening Stock</Link>
+
           </div>
 
         </div>
@@ -165,6 +171,10 @@ function MainLayout() {
               Journal Entry
             </Link>
 
+            <Link to="/convert-invoice">
+              Convert to Invoice
+            </Link>
+
           </div>
 
         </div>
@@ -187,6 +197,26 @@ function MainLayout() {
 
             <Link to="/ledger-statement">
               Ledger Statement
+            </Link>
+
+            <Link to="/receipt-vouchers">
+              Receipt Voucher
+            </Link>
+
+            <Link to="/payment-vouchers">
+              Payment Voucher
+            </Link>
+
+            <Link to="/contra-vouchers">
+              Contra Voucher
+            </Link>
+
+            <Link to="/credit-notes">
+              Credit Notes
+            </Link>
+
+            <Link to="/debit-notes">
+              Debit Notes
             </Link>
 
           </div>
@@ -240,6 +270,42 @@ function MainLayout() {
           </div>
 
         </div>
+
+        {/* ===================================================== */}
+        {/* ADMIN */}
+        {/* ===================================================== */}
+
+        {isAdmin && (
+
+          <div className="nav-group">
+
+            <h3 className="nav-group-title">
+              Admin
+            </h3>
+
+            <div className="nav-links">
+
+              <Link to="/number-series">
+                Number Series
+              </Link>
+
+              <Link to="/financial-years">
+                Financial Years
+              </Link>
+
+              <Link to="/import">
+                Data Import
+              </Link>
+
+              <Link to="/audit-logs">
+                Audit Log
+              </Link>
+
+            </div>
+
+          </div>
+
+        )}
 
       </nav>
 

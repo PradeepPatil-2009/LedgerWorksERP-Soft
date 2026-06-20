@@ -53,6 +53,20 @@ import GstReportPage from "./pages/GstReportPage";
 import GstAnalyticsPage from "./pages/GstAnalyticsPage";
 import BackupManagementPage from "./pages/BackupManagementPage";
 
+import CompanySettingsPage from "./pages/CompanySettingsPage";
+import StateMasterPage from "./pages/StateMasterPage";
+import NumberSeriesPage from "./pages/NumberSeriesPage";
+import FinancialYearPage from "./pages/FinancialYearPage";
+import ReceiptVoucherPage from "./pages/ReceiptVoucherPage";
+import PaymentVoucherPage from "./pages/PaymentVoucherPage";
+import ContraVoucherPage from "./pages/ContraVoucherPage";
+import CreditNotePage from "./pages/CreditNotePage";
+import DebitNotePage from "./pages/DebitNotePage";
+import ImportPage from "./pages/ImportPage";
+import OpeningStockPage from "./pages/OpeningStockPage";
+import AuditLogPage from "./pages/AuditLogPage";
+import ConvertInvoicePage from "./pages/ConvertInvoicePage";
+
 // ================= APP =================
 
 function App() {
@@ -258,6 +272,73 @@ function App() {
           <Route
             path="gst-analytics"
             element={<GstAnalyticsPage />}
+          />
+
+          {/* NEW MODULES */}
+
+          <Route
+            path="company-settings"
+            element={<CompanySettingsPage />}
+          />
+
+          <Route
+            path="states"
+            element={<StateMasterPage />}
+          />
+
+          <Route
+            path="number-series"
+            element={<NumberSeriesPage />}
+          />
+
+          <Route
+            path="financial-years"
+            element={<FinancialYearPage />}
+          />
+
+          <Route
+            path="receipt-vouchers"
+            element={<ReceiptVoucherPage />}
+          />
+
+          <Route
+            path="payment-vouchers"
+            element={<PaymentVoucherPage />}
+          />
+
+          <Route
+            path="contra-vouchers"
+            element={<ContraVoucherPage />}
+          />
+
+          <Route
+            path="credit-notes"
+            element={<CreditNotePage />}
+          />
+
+          <Route
+            path="debit-notes"
+            element={<DebitNotePage />}
+          />
+
+          <Route
+            path="import"
+            element={<ImportPage />}
+          />
+
+          <Route
+            path="opening-stock"
+            element={<OpeningStockPage />}
+          />
+
+          <Route
+            path="audit-logs"
+            element={<AuditLogPage />}
+          />
+
+          <Route
+            path="convert-invoice"
+            element={<ConvertInvoicePage />}
           />
 
         </Route>

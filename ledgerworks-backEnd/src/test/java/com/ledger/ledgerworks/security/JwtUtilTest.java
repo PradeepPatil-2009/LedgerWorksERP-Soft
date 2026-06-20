@@ -42,10 +42,14 @@ class JwtUtilTest {
     void tamperedTokenValidatesFalse() {
         String token = jwtUtil.generateToken("admin", "ADMIN");
 
-        // Flip the final character of the signature to invalidate it.
-        char last = token.charAt(token.length() - 1);
-        char swapped = last == 'A' ? 'B' : 'A';
-        String tampered = token.substring(0, token.length() - 1) + swapped;
+        // Tamper the payload segment: altering the signed content deterministically
+        // breaks the signature (flipping the signature's trailing base64 char is
+        // unreliable because its low bits are padding and may decode unchanged).
+        String[] parts = token.split("\\.");
+        char first = parts[1].charAt(0);
+        char swapped = first == 'A' ? 'B' : 'A';
+        String tamperedPayload = swapped + parts[1].substring(1);
+        String tampered = parts[0] + "." + tamperedPayload + "." + parts[2];
 
         assertFalse(jwtUtil.validateToken(tampered));
     }

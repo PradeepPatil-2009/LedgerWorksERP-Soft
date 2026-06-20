@@ -1,0 +1,323 @@
+import { useEffect, useState } from "react";
+
+import API from "../api/api";
+
+import { useToast } from "../components/Toast";
+
+function DebitNotePage() {
+
+  const toast = useToast();
+
+  const [notes, setNotes] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+
+  const [form, setForm] = useState({
+    noteNumber: "",
+    date: "",
+    vendorId: "",
+    partyName: "",
+    invoiceReference: "",
+    amount: "",
+    gstAmount: "",
+    reason: "",
+    narration: "",
+  });
+
+  useEffect(() => {
+    loadNotes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ================= LOAD =================
+
+  const loadNotes = async () => {
+
+    setLoading(true);
+
+    try {
+
+      const res = await API.get("/debit-notes");
+
+      const data = Array.isArray(res.data) ? res.data : [];
+
+      setNotes(data);
+
+    } catch (err) {
+
+      console.error(err);
+
+      toast.error("Error loading debit notes");
+
+    } finally {
+
+      setLoading(false);
+    }
+  };
+
+  // ================= CHANGE =================
+
+  const handleChange = (e) => {
+
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  // ================= RESET =================
+
+  const resetForm = () => {
+
+    setForm({
+      noteNumber: "",
+      date: "",
+      vendorId: "",
+      partyName: "",
+      invoiceReference: "",
+      amount: "",
+      gstAmount: "",
+      reason: "",
+      narration: "",
+    });
+  };
+
+  // ================= SAVE =================
+
+  const handleSubmit = async () => {
+
+    if (!form.partyName) {
+
+      toast.error("Vendor / Party Name Required");
+
+      return;
+    }
+
+    if (!form.amount) {
+
+      toast.error("Amount Required");
+
+      return;
+    }
+
+    const payload = {
+      noteNumber: form.noteNumber || null,
+      date: form.date || null,
+      vendorId: form.vendorId ? Number(form.vendorId) : null,
+      partyName: form.partyName,
+      invoiceReference: form.invoiceReference,
+      amount: Number(form.amount),
+      gstAmount: form.gstAmount ? Number(form.gstAmount) : 0,
+      reason: form.reason,
+      narration: form.narration,
+    };
+
+    try {
+
+      await API.post("/debit-notes", payload);
+
+      toast.success("Debit Note Saved Successfully");
+
+      resetForm();
+
+      loadNotes();
+
+    } catch (err) {
+
+      console.error(err);
+
+      toast.error("Error saving debit note");
+    }
+  };
+
+  return (
+
+    <div>
+
+      <h2>Debit Notes</h2>
+
+      <p style={{ color: "#666" }}>
+        Purchase return issued to a vendor.
+      </p>
+
+      {/* ================= FORM ================= */}
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <input
+          name="noteNumber"
+          placeholder="Note Number (auto)"
+          value={form.noteNumber}
+          onChange={handleChange}
+        />
+
+        <input
+          name="date"
+          type="date"
+          value={form.date}
+          onChange={handleChange}
+        />
+
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <input
+          name="partyName"
+          placeholder="Vendor / Party Name"
+          value={form.partyName}
+          onChange={handleChange}
+        />
+
+        <input
+          name="vendorId"
+          placeholder="Vendor ID"
+          value={form.vendorId}
+          onChange={handleChange}
+        />
+
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <input
+          name="invoiceReference"
+          placeholder="Invoice Reference"
+          value={form.invoiceReference}
+          onChange={handleChange}
+        />
+
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <input
+          name="amount"
+          type="number"
+          placeholder="Amount"
+          value={form.amount}
+          onChange={handleChange}
+        />
+
+        <input
+          name="gstAmount"
+          type="number"
+          placeholder="GST Amount"
+          value={form.gstAmount}
+          onChange={handleChange}
+        />
+
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <input
+          name="reason"
+          placeholder="Reason"
+          value={form.reason}
+          onChange={handleChange}
+        />
+
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+
+        <textarea
+          name="narration"
+          placeholder="Narration"
+          value={form.narration}
+          onChange={handleChange}
+          rows="3"
+          cols="60"
+        />
+
+      </div>
+
+      <button onClick={handleSubmit}>
+        Save Debit Note
+      </button>
+
+      <button onClick={resetForm}>
+        New
+      </button>
+
+      <hr />
+
+      {/* ================= TABLE ================= */}
+
+      {loading ? (
+
+        <p>Loading...</p>
+
+      ) : (
+
+        <div style={{ overflowX: "auto" }}>
+
+          <table border="1" cellPadding="5">
+
+            <thead>
+
+              <tr>
+                <th>ID</th>
+                <th>Note No</th>
+                <th>Date</th>
+                <th>Party</th>
+                <th>Invoice Ref</th>
+                <th>Amount</th>
+                <th>GST</th>
+                <th>Reason</th>
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {notes.length > 0 ? (
+
+                notes.map((n) => (
+
+                  <tr key={n.id}>
+
+                    <td>{n.id}</td>
+
+                    <td>{n.noteNumber}</td>
+
+                    <td>{n.date}</td>
+
+                    <td>{n.partyName}</td>
+
+                    <td>{n.invoiceReference}</td>
+
+                    <td>{n.amount}</td>
+
+                    <td>{n.gstAmount}</td>
+
+                    <td>{n.reason}</td>
+
+                  </tr>
+                ))
+
+              ) : (
+
+                <tr>
+
+                  <td colSpan="8">
+                    No Data Found
+                  </td>
+
+                </tr>
+
+              )}
+
+            </tbody>
+
+          </table>
+
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default DebitNotePage;
