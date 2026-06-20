@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/gst-utility")
-@CrossOrigin(origins = "http://localhost:3000")
 public class GstUtilityController {
 
     private final GstUtilityService service;

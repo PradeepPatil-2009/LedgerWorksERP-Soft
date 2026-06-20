@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/debit-notes")
-@CrossOrigin(origins = "http://localhost:3000")
 public class DebitNoteController {
 
     private final DebitNoteService service;

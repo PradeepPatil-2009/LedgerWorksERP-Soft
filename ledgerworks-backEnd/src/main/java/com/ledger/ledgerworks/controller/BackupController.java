@@ -10,10 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/backup")
-@CrossOrigin(
-        origins = "http://localhost:3000",
-        allowCredentials = "true"
-)
 public class BackupController {
 
     @Autowired

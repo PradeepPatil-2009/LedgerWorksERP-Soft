@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/material-issue")
-@CrossOrigin(origins = "http://localhost:3000")
 public class MaterialIssueController {
 
     private final MaterialIssueService service;

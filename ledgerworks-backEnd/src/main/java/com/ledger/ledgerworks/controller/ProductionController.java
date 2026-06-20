@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/production")
-@CrossOrigin(origins = "http://localhost:3000")
 public class ProductionController {
 
     private final ProductionService service;

@@ -9,7 +9,6 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/reports")
-@CrossOrigin(origins = "http://localhost:3000")
 public class TrialBalanceController {
 
     private final TrialBalanceService service;

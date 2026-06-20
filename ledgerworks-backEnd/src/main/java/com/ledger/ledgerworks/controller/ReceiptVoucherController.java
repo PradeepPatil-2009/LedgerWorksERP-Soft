@@ -8,7 +8,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/receipt-vouchers")
-@CrossOrigin
 public class ReceiptVoucherController {
 
     private final ReceiptVoucherService service;

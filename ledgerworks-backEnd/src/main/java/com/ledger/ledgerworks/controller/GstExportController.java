@@ -30,10 +30,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/gst")
-@CrossOrigin(
-        origins = "http://localhost:3000",
-        allowCredentials = "true"
-)
 public class GstExportController {
 
     @Autowired

@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/stock-ledger")
-@CrossOrigin(origins = "http://localhost:3000")
 public class StockLedgerController {
 
     @Autowired

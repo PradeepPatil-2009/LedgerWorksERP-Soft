@@ -23,7 +23,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/gst")
-@CrossOrigin(origins = "http://localhost:3000")
 public class GstReportController {
 
     @Autowired

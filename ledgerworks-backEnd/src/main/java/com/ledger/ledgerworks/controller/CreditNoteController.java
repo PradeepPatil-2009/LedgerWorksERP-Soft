@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/credit-notes")
-@CrossOrigin(origins = "http://localhost:3000")
 public class CreditNoteController {
 
     private final CreditNoteService service;

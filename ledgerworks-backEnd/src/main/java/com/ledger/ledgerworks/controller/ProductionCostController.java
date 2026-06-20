@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/production-cost")
-@CrossOrigin(origins = "http://localhost:3000")
 public class ProductionCostController {
 
     private final ProductionCostService service;
