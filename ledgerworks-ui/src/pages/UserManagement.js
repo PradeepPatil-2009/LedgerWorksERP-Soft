@@ -4,6 +4,8 @@ import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
 
+const ROLES = ["ADMIN", "ACCOUNTANT", "USER", "VIEWER"];
+
 function UserManagement() {
   const navigate = useNavigate();
   const toast = useToast();
@@ -30,19 +32,17 @@ function UserManagement() {
     role: "USER",
   });
 
-  const token = localStorage.getItem("token");
-
-  // ✅ FETCH USERS
+  // Auth is via the HttpOnly cookie (sent automatically with credentials), so
+  // there is no token to read here. ProtectedRoute already gates access; we
+  // only handle a mid-session 401 by bouncing back to login.
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const res = await fetch("http://localhost:8080/api/users");
+      if (res.status === 401) {
+        navigate("/login");
+        return;
+      }
       if (!res.ok) throw new Error("API failed");
-
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -50,19 +50,12 @@ function UserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [navigate]);
 
-  // ✅ AUTH FIX (IMPORTANT)
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     fetchUsers();
-  }, [token, fetchUsers, navigate]);
+  }, [fetchUsers]);
 
-  // ✅ CREATE USER
   const createUser = async () => {
     if (!newUser.username || !newUser.password) {
       toast.error("Enter username & password");
@@ -72,10 +65,7 @@ function UserManagement() {
     try {
       await fetch("http://localhost:8080/api/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser),
       });
 
@@ -88,16 +78,12 @@ function UserManagement() {
     }
   };
 
-  // ✅ DELETE USER
   const deleteUser = async (id) => {
     if (!window.confirm("Delete user?")) return;
 
     try {
       await fetch(`http://localhost:8080/api/users/${id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       toast.success("User Deleted");
@@ -108,17 +94,11 @@ function UserManagement() {
     }
   };
 
-  // ✅ UPDATE ROLE
   const updateRole = async (id, role) => {
     try {
       await fetch(
         `http://localhost:8080/api/users/${id}/role?role=${role}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { method: "PUT" }
       );
 
       toast.success("Role Updated");
@@ -160,8 +140,11 @@ function UserManagement() {
             setNewUser({ ...newUser, role: e.target.value })
           }
         >
-          <option>USER</option>
-          <option>ADMIN</option>
+          {ROLES.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
         </select>
 
         <button onClick={createUser}>Create</button>
@@ -178,41 +161,44 @@ function UserManagement() {
 
       {/* TABLE */}
       <div className="table-scroll">
-      <table border="1" style={{ margin: "0 auto" }}>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Change</th>
-            <th>Delete</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {pageItems.map((u) => (
-            <tr key={u.id}>
-              <td>{u.id}</td>
-              <td>{u.username}</td>
-              <td>{u.role}</td>
-
-              <td>
-                <select
-                  value={u.role}
-                  onChange={(e) => updateRole(u.id, e.target.value)}
-                >
-                  <option>USER</option>
-                  <option>ADMIN</option>
-                </select>
-              </td>
-
-              <td>
-                <button onClick={() => deleteUser(u.id)}>Delete</button>
-              </td>
+        <table border="1" style={{ margin: "0 auto" }}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Change</th>
+              <th>Delete</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {pageItems.map((u) => (
+              <tr key={u.id}>
+                <td>{u.id}</td>
+                <td>{u.username}</td>
+                <td>{u.role}</td>
+
+                <td>
+                  <select
+                    value={u.role}
+                    onChange={(e) => updateRole(u.id, e.target.value)}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+
+                <td>
+                  <button onClick={() => deleteUser(u.id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <Pagination
