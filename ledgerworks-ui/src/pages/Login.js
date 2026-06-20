@@ -27,9 +27,9 @@ function Login() {
     try {
       const res = await loginUser(trimmedUsername, password);
 
-      // Persist the session (token + identity) so every request is authenticated.
+      // The JWT now lives in an HttpOnly cookie set by the server; persist only
+      // the identity so the UI can render it and gate routes.
       applyAuthSession({
-        token: res.token,
         username: res.username,
         role: res.role,
       });

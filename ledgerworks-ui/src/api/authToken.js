@@ -1,18 +1,21 @@
-// Centralised auth-token handling.
+// Centralised auth-session handling.
 //
-// The app talks to the backend three ways: the shared `api.js` axios instance,
-// bare `axios` calls, and raw `fetch` calls. To attach the JWT everywhere
-// without editing every page, we (1) set a global axios default header and
-// (2) patch window.fetch once to inject the bearer token on API requests.
+// The JWT now lives in an HttpOnly `access_token` cookie that JavaScript cannot
+// read. We therefore no longer store or attach the token anywhere. Instead we:
+//   (1) keep only the user's identity (username + role) in localStorage so the
+//       UI can render it and gate routes, and
+//   (2) make sure every request carries cookies — axios via
+//       `withCredentials: true`, and raw `fetch` via `credentials: "include"`.
 
 import axios from "axios";
 
-export const TOKEN_KEY = "token";
 export const USERNAME_KEY = "username";
 export const ROLE_KEY = "role";
 
+// The JWT is an HttpOnly cookie now; nothing in JS can read it. Kept as a
+// no-op so any stray import does not break, but nothing relies on it for auth.
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return null;
 }
 
 export function getRole() {
@@ -23,27 +26,22 @@ export function getUsername() {
   return localStorage.getItem(USERNAME_KEY);
 }
 
-// Persist the session and make every subsequent request authenticated.
-export function applyAuthSession({ token, username, role }) {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  }
+// Persist the identity and make sure axios always sends cookies.
+export function applyAuthSession({ username, role }) {
   if (username) localStorage.setItem(USERNAME_KEY, username);
   if (role) localStorage.setItem(ROLE_KEY, role);
+  axios.defaults.withCredentials = true;
 }
 
 export function clearAuthSession() {
-  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USERNAME_KEY);
   localStorage.removeItem(ROLE_KEY);
-  delete axios.defaults.headers.common["Authorization"];
 }
 
 let fetchPatched = false;
 
 // The origin of our backend API, computed once. Anything resolving to a
-// different origin is treated as third-party and never receives our JWT,
+// different origin is treated as third-party and never receives our cookies,
 // even if its URL happens to contain the substring "/api/".
 function getApiOrigin() {
   if (typeof window === "undefined") return null;
@@ -64,47 +62,33 @@ function setupFetchAuth() {
   const pageOrigin = window.location.origin;
 
   window.fetch = (input, init = {}) => {
-    const token = getToken();
     const url =
       typeof input === "string" ? input : (input && input.url) || "";
 
     // Resolve the request URL against the page origin so we can compare
-    // origins. Only attach the token when the request targets our API
-    // origin (or the page's own origin) — never a third-party URL that
-    // merely contains "/api/".
+    // origins. Only send cookies when the request targets our API origin (or
+    // the page's own origin) — never a third-party URL that merely contains
+    // "/api/".
     let sameTarget = false;
-    if (token) {
-      try {
-        const requestOrigin = new URL(url, window.location.origin).origin;
-        sameTarget =
-          requestOrigin === apiOrigin || requestOrigin === pageOrigin;
-      } catch (e) {
-        sameTarget = false;
-      }
+    try {
+      const requestOrigin = new URL(url, window.location.origin).origin;
+      sameTarget =
+        requestOrigin === apiOrigin || requestOrigin === pageOrigin;
+    } catch (e) {
+      sameTarget = false;
     }
 
-    if (token && sameTarget) {
-      const headers = new Headers(
-        init.headers ||
-          (typeof input !== "string" ? input.headers : undefined) ||
-          {}
-      );
-      if (!headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-      init = { ...init, headers };
+    if (sameTarget) {
+      init = { ...init, credentials: "include" };
     }
 
     return originalFetch(input, init);
   };
 }
 
-// Call once at app start: patch fetch and restore the axios default header
-// from any previously stored token (so a page refresh stays authenticated).
+// Call once at app start: patch fetch to send cookies on same-origin/API
+// requests and make axios send cookies by default.
 export function bootstrapAuth() {
+  axios.defaults.withCredentials = true;
   setupFetchAuth();
-  const token = getToken();
-  if (token) {
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  }
 }

@@ -90,8 +90,11 @@ test("submitting valid credentials calls loginUser and navigates without crashin
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
   });
 
-  // Session was persisted by applyAuthSession.
-  expect(localStorage.getItem("token")).toBe("jwt-token-123");
+  // Identity (not the token) was persisted by applyAuthSession; the JWT lives
+  // in an HttpOnly cookie and is never written to localStorage.
+  expect(localStorage.getItem("username")).toBe("admin");
+  expect(localStorage.getItem("role")).toBe("ADMIN");
+  expect(localStorage.getItem("token")).toBeNull();
 });
 
 test("shows an error message when loginUser rejects", async () => {

@@ -3,6 +3,7 @@ package com.ledger.ledgerworks.security;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,14 +30,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+        // Prefer the access_token cookie; fall back to the Authorization: Bearer header.
+        String token = extractTokenFromCookie(request);
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (token == null) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            }
+        }
+
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = authHeader.substring(7);
 
         if (!jwtUtil.validateToken(token)) {
             filterChain.doFilter(request, response);
@@ -58,5 +65,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
+    }
+
+    /** Returns the value of the {@code access_token} cookie, or {@code null} if absent. */
+    private String extractTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if ("access_token".equals(cookie.getName())) {
+                String value = cookie.getValue();
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
+        }
+        return null;
     }
 }

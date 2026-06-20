@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { clearAuthSession, getRole, getUsername } from "../api/authToken";
+import { logoutUser } from "../api/api";
 
 // Navigation model — grouped exactly as before. `admin: true` on a link or
 // `adminOnly: true` on a group hides it for non-ADMIN roles.
@@ -95,7 +96,10 @@ function MainLayout() {
     setSidebarOpen(false);
   }, [location.pathname]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Revoke the refresh token and clear the server cookies first, then drop
+    // the local identity and return to login.
+    await logoutUser();
     clearAuthSession();
     navigate("/login");
   };

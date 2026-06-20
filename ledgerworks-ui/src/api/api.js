@@ -1,34 +1,43 @@
 import axios from "axios";
-import { getToken, clearAuthSession } from "./authToken";
+import { clearAuthSession } from "./authToken";
 
 // Base URL is overridable for deployment; defaults to the local backend.
+// `withCredentials: true` makes the browser send the auth cookies (access_token
+// / refresh_token) on every request — the JWT is never attached as a header.
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL || "http://localhost:8080/api",
-});
-
-// ================= AUTH HEADER =================
-API.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  withCredentials: true,
 });
 
 // ================= 401 HANDLING =================
-// If the token is missing/expired, send the user back to login (except while
-// they are actually trying to log in).
+// The access_token cookie can expire. On the first 401/403 for a non-/auth
+// request, try to silently refresh the access cookie ONCE and replay the
+// original request. If the refresh fails, clear the local session and send the
+// user back to login.
 API.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error?.response?.status;
-    const url = error?.config?.url || "";
-    if ((status === 401 || status === 403) && !url.includes("/auth/")) {
-      clearAuthSession();
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+    const original = error?.config || {};
+    const url = original.url || "";
+
+    const isAuthCall = url.includes("/auth/");
+    const recoverable = status === 401 || status === 403;
+
+    if (recoverable && !isAuthCall && !original._retried) {
+      original._retried = true;
+      try {
+        await refreshSession();
+        return API(original);
+      } catch (refreshErr) {
+        clearAuthSession();
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+        return Promise.reject(refreshErr);
       }
     }
+
     return Promise.reject(error);
   }
 );
@@ -41,10 +50,27 @@ const handleError = (error, msg = "Something went wrong") => {
 };
 
 // ================= AUTH =================
-// Real login: POST credentials, receive { id, username, role, token }.
+// Real login: POST credentials, receive { id, username, role, token } in the
+// body (kept for backward compatibility) plus HttpOnly access/refresh cookies.
 export const loginUser = async (username, password) => {
   const res = await API.post("/auth/login", { username, password });
   return res.data;
+};
+
+// Silently mint a fresh access_token cookie from the refresh_token cookie.
+// Resolves (200) on success, rejects (401) when the refresh token is invalid.
+// Declared as a hoisted function so the response interceptor above can use it.
+export function refreshSession() {
+  return API.post("/auth/refresh");
+}
+
+// Revoke the refresh token server-side and clear both auth cookies.
+export const logoutUser = async () => {
+  try {
+    await API.post("/auth/logout");
+  } catch (e) {
+    // Best effort — clear the local session regardless of server response.
+  }
 };
 
 // ================= CUSTOMER =================

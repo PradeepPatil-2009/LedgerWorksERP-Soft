@@ -22,6 +22,9 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    @Value("${jwt.refresh-expiration:604800000}")
+    private long refreshExpiration;
+
     private Key key;
 
     @PostConstruct
@@ -63,5 +66,15 @@ public class JwtUtil {
         } catch (JwtException e) {
             return false;
         }
+    }
+
+    /** @return access-token lifetime in milliseconds (used for the access_token cookie Max-Age). */
+    public long getExpiration() {
+        return expiration;
+    }
+
+    /** @return refresh-token lifetime in milliseconds (used for the refresh_token cookie Max-Age). */
+    public long getRefreshExpiration() {
+        return refreshExpiration;
     }
 }
