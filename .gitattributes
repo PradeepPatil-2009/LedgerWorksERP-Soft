@@ -1,0 +1,18 @@
+# Normalize all text files to LF on checkin; this stops CRLF churn across OSes.
+* text=auto eol=lf
+
+# Treat these as binary (never normalize line endings, never diff as text).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.jar  binary
+*.pdf  binary
+*.pptx binary
+*.xlsx binary
+*.zip  binary
+
+# Windows-only scripts must keep CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf

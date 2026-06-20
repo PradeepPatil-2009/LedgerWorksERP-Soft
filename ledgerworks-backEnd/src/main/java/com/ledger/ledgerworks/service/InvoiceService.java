@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import com.ledger.ledgerworks.entity.DeliveryChallan;
 import com.ledger.ledgerworks.entity.Invoice;
+import com.ledger.ledgerworks.enums.DocumentType;
 import com.ledger.ledgerworks.repository.DeliveryChallanRepository;
 import com.ledger.ledgerworks.repository.InvoiceRepository;
 import com.lowagie.text.Document;
@@ -47,7 +48,13 @@ public class InvoiceService {
 
     @Autowired
     private DocumentNumberService documentNumberService;
-    
+
+    @Autowired
+    private NumberSeriesService numberSeriesService;
+
+    @Autowired
+    private FinancialYearService financialYearService;
+
     @Autowired
     private GstCalculatorService gstCalculatorService;
 
@@ -63,6 +70,23 @@ public class InvoiceService {
     public Invoice create(
             Invoice invoice
     ) {
+
+        // ================= FINANCIAL YEAR LOCK CHECK =================
+
+        financialYearService.assertOpen(
+                invoice.getInvoiceDate()
+        );
+
+        // ================= DOCUMENT NUMBER =================
+        // Use admin-configured series; fall back to the legacy generator.
+
+        if (invoice.getInvoiceNumber() == null
+                || invoice.getInvoiceNumber().isBlank()) {
+
+            invoice.setInvoiceNumber(
+                    nextInvoiceNumber()
+            );
+        }
 
         // ================= GST AUTO CALCULATION =================
 
@@ -139,27 +163,21 @@ public class InvoiceService {
         Invoice invoice =
                 new Invoice();
 
-        invoice.setInvoiceNumber(
-
-                documentNumberService.generateNumber(
-
-                        "INV",
-
-                        invoiceRepository
-                        .findTopByOrderByIdDesc() != null
-
-                                ?
-
-                                invoiceRepository
-                                .findTopByOrderByIdDesc()
-                                .getInvoiceNumber()
-
-                                : null
-                )
-        );
-
         invoice.setInvoiceDate(
                 LocalDate.now()
+        );
+
+        // ================= FINANCIAL YEAR LOCK CHECK =================
+
+        financialYearService.assertOpen(
+                invoice.getInvoiceDate()
+        );
+
+        // ================= DOCUMENT NUMBER =================
+        // Use admin-configured series; fall back to the legacy generator.
+
+        invoice.setInvoiceNumber(
+                nextInvoiceNumber()
         );
 
         invoice.setDueDate(
@@ -1055,6 +1073,41 @@ public class InvoiceService {
     }
 }
     
+    // ================= NEXT INVOICE NUMBER =================
+    // Prefer the admin-configured NumberSeries; if it has no row or
+    // throws, fall back to the legacy DocumentNumberService so that
+    // invoice creation never fails because of numbering.
+
+    private String nextInvoiceNumber() {
+
+        try {
+
+            String number =
+                    numberSeriesService.next(DocumentType.INVOICE);
+
+            if (number != null && !number.isBlank()) {
+
+                return number;
+            }
+
+        } catch (Exception e) {
+
+            log.warn(
+                    "NumberSeries lookup failed for INVOICE; "
+                            + "falling back to legacy numbering",
+                    e
+            );
+        }
+
+        Invoice last =
+                invoiceRepository.findTopByOrderByIdDesc();
+
+        return documentNumberService.generateNumber(
+                "INV",
+                last != null ? last.getInvoiceNumber() : null
+        );
+    }
+
     // Helper method
     private String safeStr(String val) {
 

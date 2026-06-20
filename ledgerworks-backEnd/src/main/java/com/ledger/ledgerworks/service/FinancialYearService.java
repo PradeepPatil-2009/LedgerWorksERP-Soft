@@ -42,6 +42,32 @@ public class FinancialYearService {
         repository.save(fy);
     }
 
+    // ✅ ASSERT OPEN -> blocks postings into a LOCKED financial year only
+    public void assertOpen(LocalDate date) {
+
+        if (date == null) {
+            return;
+        }
+
+        for (FinancialYear fy : repository.findAll()) {
+
+            if (!fy.isLocked()) {
+                continue;
+            }
+
+            LocalDate start = fy.getStartDate();
+            LocalDate end = fy.getEndDate();
+
+            boolean afterStart = start == null || !date.isBefore(start);
+            boolean beforeEnd = end == null || !date.isAfter(end);
+
+            if (afterStart && beforeEnd) {
+                throw new IllegalStateException(
+                        "Financial year is locked for " + date);
+            }
+        }
+    }
+
     // ✅ GET ALL (newest first)
     public List<FinancialYear> getAll() {
         return repository.findAllByOrderByStartDateDesc();

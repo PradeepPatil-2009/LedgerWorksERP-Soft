@@ -16,6 +16,31 @@
   --lw-radius: 8px;
   --lw-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
   --lw-sidebar-w: 248px;
+  --lw-surface-alt: #f8fafc;
+}
+
+/* ===================================================== */
+/* DARK THEME — overrides the custom properties           */
+/* ===================================================== */
+
+[data-theme="dark"] {
+  --lw-bg: #0b1220;
+  --lw-surface: #111827;
+  --lw-surface-alt: #1f2937;
+  --lw-border: #334155;
+  --lw-text: #e2e8f0;
+  --lw-muted: #94a3b8;
+  --lw-primary: #3b82f6;
+  --lw-primary-hover: #2563eb;
+  --lw-danger: #ef4444;
+  --lw-danger-hover: #dc2626;
+  --lw-success: #22c55e;
+  /* Sidebar stays dark; nudge it slightly for contrast against the dark body. */
+  --lw-sidebar: #0f172a;
+  --lw-sidebar-2: #1e293b;
+  --lw-sidebar-text: #cbd5e1;
+  --lw-sidebar-muted: #64748b;
+  --lw-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -85,7 +110,7 @@ button {
 }
 
 button:hover {
-  background: #f8fafc;
+  background: var(--lw-surface-alt);
 }
 
 button:disabled {
@@ -140,7 +165,7 @@ table td {
 }
 
 table thead th {
-  background: #f8fafc;
+  background: var(--lw-surface-alt);
   color: var(--lw-muted);
   font-weight: 600;
   white-space: nowrap;
@@ -148,7 +173,7 @@ table thead th {
 }
 
 table tbody tr:hover {
-  background: #f8fafc;
+  background: var(--lw-surface-alt);
 }
 
 /* Wrap raw tables so they scroll horizontally on small screens. */
@@ -341,6 +366,37 @@ table tbody tr:hover {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] .app-role-badge {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.topbar-link {
+  color: var(--lw-primary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.topbar-link:hover {
+  text-decoration: underline;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--lw-border);
+  color: var(--lw-text);
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px 10px;
+  margin: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--lw-surface-alt);
 }
 
 .sidebar-toggle {
@@ -539,6 +595,10 @@ table tbody tr:hover {
   }
 
   .topbar-username {
+    display: none;
+  }
+
+  .topbar-link {
     display: none;
   }
 

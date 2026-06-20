@@ -375,6 +375,358 @@ async function run() {
     }
   });
 
+  // 9. SMOKE-RENDER EVERY PROTECTED ROUTE ------------------------------
+  // Visit every non-parameterised protected path from App.js. For each, the
+  // page must NOT bounce to /login and the app shell + a real heading/main
+  // must render (catches blank-screen / crashing routes).
+  await scenario("9. SMOKE-RENDER EVERY ROUTE", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      // Authoritative list parsed from ledgerworks-ui/src/App.js (protected
+      // routes only; parameterised :id routes excluded — a create route is
+      // covered to exercise the form variants).
+      const ROUTES = [
+        "/dashboard",
+        "/backup-management",
+        "/customers",
+        "/vendors",
+        "/users",
+        "/items",
+        "/stock-report",
+        "/invoices",
+        "/invoice-outstanding",
+        "/invoice-payment",
+        "/delivery-challan",
+        "/delivery-challan/create",
+        "/purchase",
+        "/production",
+        "/production-list",
+        "/material-issue",
+        "/accounts",
+        "/ledger",
+        "/ledger-statement",
+        "/journal",
+        "/trial-balance",
+        "/profit-loss",
+        "/balance-sheet",
+        "/cash-flow",
+        "/aging",
+        "/outstanding",
+        "/gst-report",
+        "/gst-analytics",
+        "/company-settings",
+        "/states",
+        "/number-series",
+        "/financial-years",
+        "/receipt-vouchers",
+        "/payment-vouchers",
+        "/contra-vouchers",
+        "/credit-notes",
+        "/debit-notes",
+        "/import",
+        "/opening-stock",
+        "/audit-logs",
+        "/convert-invoice",
+        "/change-password",
+        "/settings",
+        "/gst-rates-settings",
+      ];
+
+      const broken = [];
+      for (const route of ROUTES) {
+        try {
+          await page.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded" });
+          await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+          if (page.url().endsWith("/login")) {
+            broken.push(`${route} → redirected to /login`);
+            continue;
+          }
+
+          // App shell must be present.
+          const shell = await page.locator("aside.app-sidebar").count();
+          if (shell === 0) {
+            broken.push(`${route} → app shell (aside.app-sidebar) missing`);
+            continue;
+          }
+
+          // Real page content: a heading inside <main>, or at least <main> with text.
+          const main = page.locator("main");
+          const headingCount = await main.locator("h1, h2, h3").count();
+          const mainText = ((await main.innerText().catch(() => "")) || "").trim();
+          if (headingCount === 0 && mainText.length === 0) {
+            broken.push(`${route} → no heading and empty <main> (blank page)`);
+          }
+        } catch (e) {
+          broken.push(`${route} → threw: ${e.message}`);
+        }
+      }
+
+      assert(
+        broken.length === 0,
+        `${broken.length}/${ROUTES.length} route(s) failed to render:\n      - ${broken.join("\n      - ")}`
+      );
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // 10. DASHBOARD CHARTS -----------------------------------------------
+  // recharts renders only when there is monetary data; otherwise the page
+  // shows a "No data yet" placeholder. Either is a valid healthy state.
+  await scenario("10. DASHBOARD CHARTS", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+      await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("main").getByRole("heading", { name: "Dashboard", exact: true }).waitFor({ timeout: 10000 });
+      await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+      // Wait briefly for either a chart svg or the placeholder to settle.
+      const chart = page.locator(".recharts-responsive-container, .recharts-surface");
+      const placeholder = page.getByText(/No data yet/i);
+
+      const haveChart = await chart
+        .first()
+        .waitFor({ timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (haveChart) {
+        assert((await chart.count()) >= 1, "at least one recharts chart should render");
+      } else {
+        // No monetary data seeded → the explicit placeholder must be shown.
+        await placeholder.waitFor({ timeout: 4000 });
+        assert(
+          (await placeholder.count()) >= 1,
+          'with no data the "No data yet" placeholder must be shown'
+        );
+      }
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // 11. DARK MODE TOGGLE -----------------------------------------------
+  await scenario("11. DARK MODE TOGGLE", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      const toggle = page.getByRole("button", { name: "Toggle dark mode" });
+      await toggle.waitFor({ timeout: 10000 });
+
+      // Toggle → dark, and it persists across reload via localStorage.
+      await toggle.click();
+      await page.waitForFunction(
+        () => document.documentElement.dataset.theme === "dark",
+        null,
+        { timeout: 5000 }
+      );
+      assert(
+        (await page.evaluate(() => localStorage.getItem("theme"))) === "dark",
+        'localStorage "theme" should be "dark" after toggle'
+      );
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(
+        () => document.documentElement.dataset.theme === "dark",
+        null,
+        { timeout: 5000 }
+      );
+      assert(
+        (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark",
+        "dark theme should persist after reload"
+      );
+
+      // Toggle back → light.
+      await page.getByRole("button", { name: "Toggle dark mode" }).click();
+      await page.waitForFunction(
+        () => document.documentElement.dataset.theme === "light",
+        null,
+        { timeout: 5000 }
+      );
+      assert(
+        (await page.evaluate(() => localStorage.getItem("theme"))) === "light",
+        'localStorage "theme" should be "light" after toggling back'
+      );
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // 12. SETTINGS HUB (admin) -------------------------------------------
+  await scenario("12. SETTINGS HUB", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      await page.goto(`${BASE}/settings`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("main").getByRole("heading", { name: "Settings", exact: true }).waitFor({ timeout: 10000 });
+
+      // Entry-point cards are <Link>s; assert each by href (robust to layout).
+      const main = page.getByRole("main");
+      for (const href of [
+        "/company-settings",
+        "/gst-rates-settings",
+        "/number-series",
+        "/financial-years",
+      ]) {
+        const link = main.locator(`a[href="${href}"]`);
+        assert(
+          (await link.count()) >= 1,
+          `Settings hub should link to ${href}`
+        );
+      }
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // 13. GST RATE MASTER CRUD (admin) -----------------------------------
+  await scenario("13. GST RATE MASTER CRUD", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      await page.goto(`${BASE}/gst-rates-settings`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("heading", { name: "GST Rate Settings" }).waitFor({ timeout: 10000 });
+
+      // The 5 seeded slabs (GST 0/5/12/18/28 %) must be listed.
+      for (const label of ["GST 0%", "GST 5%", "GST 12%", "GST 18%", "GST 28%"]) {
+        const cell = page.getByRole("cell", { name: label, exact: true });
+        await cell.first().waitFor({ timeout: 10000 });
+        assert((await cell.count()) >= 1, `seeded slab "${label}" should be listed`);
+      }
+
+      // ADD a new rate: 3 / "GST 3% <uniq>" (unique label so the row is findable).
+      const label = `GST 3% ${uniq()}`;
+      await page.getByPlaceholder("Rate %").fill("3");
+      await page.getByPlaceholder("Label (e.g. GST 18%)").fill(label);
+      await page.getByRole("button", { name: "Add Rate" }).click();
+
+      const row = page.getByRole("row", { name: new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+      await row.first().waitFor({ timeout: 12000 });
+      assert((await row.count()) >= 1, `newly added rate "${label}" should appear in the list`);
+
+      // DELETE it (window.confirm → accept) and assert it's gone.
+      page.once("dialog", (d) => d.accept());
+      await row.first().getByRole("button", { name: "Delete" }).click();
+      await page.waitForFunction(
+        (l) => !Array.from(document.querySelectorAll("td")).some((td) => td.textContent.trim() === l),
+        label,
+        { timeout: 12000 }
+      );
+      const after = page.getByRole("row", { name: new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+      assert((await after.count()) === 0, `rate "${label}" should be gone after Delete`);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // 14. CHANGE PASSWORD (negative, safe) -------------------------------
+  // Submit a WRONG current password and assert an error toast appears. We do
+  // NOT change the admin password (it would break later logins).
+  await scenario("14. CHANGE PASSWORD (negative)", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      await page.goto(`${BASE}/change-password`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("heading", { name: "Change Password" }).waitFor({ timeout: 10000 });
+
+      await page.getByPlaceholder("Current Password").fill("definitely-not-the-password");
+      const newPw = "NewPass" + uniq();
+      await page.getByPlaceholder("New Password", { exact: true }).fill(newPw);
+      await page.getByPlaceholder("Confirm New Password").fill(newPw);
+
+      await page.getByRole("button", { name: "Change Password" }).click();
+
+      // An error toast (role="alert") must appear; the message should indicate
+      // the current password was rejected.
+      const alert = page.getByRole("alert");
+      await alert.first().waitFor({ timeout: 10000 });
+      const text = (await alert.first().innerText()).trim();
+      assert(text.length > 0, "an error toast should appear for a wrong current password");
+      assert(
+        /incorrect|current password|error/i.test(text),
+        `error toast should reference the bad current password, got "${text}"`
+      );
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // 15. VENDOR CREATE and ITEM CREATE ----------------------------------
+  await scenario("15. VENDOR + ITEM CREATE", async () => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await uiLogin(page);
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
+
+      // ---- VENDOR ----
+      await page.goto(`${BASE}/vendors`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("main").getByRole("heading", { name: "Vendors", exact: true }).waitFor({ timeout: 10000 });
+
+      const vendorName = `E2E Vendor ${uniq()}`;
+      await page.getByPlaceholder("Vendor Name").fill(vendorName);
+      await page.getByPlaceholder("GST Number").fill("27AAAAA0000A1Z5");
+      await page.getByRole("button", { name: "Save Vendor" }).click();
+
+      const vRow = page.getByRole("row", { name: new RegExp(vendorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+      await vRow.first().waitFor({ timeout: 12000 });
+      assert((await vRow.count()) >= 1, `vendor "${vendorName}" should appear in the table`);
+
+      // Best-effort cleanup: delete the vendor (Delete control exists per row).
+      try {
+        page.once("dialog", (d) => d.accept());
+        await vRow.first().getByRole("button", { name: "Delete" }).click();
+        await page.waitForFunction(
+          (n) => !Array.from(document.querySelectorAll("td")).some((td) => td.textContent.trim() === n),
+          vendorName,
+          { timeout: 12000 }
+        );
+      } catch (e) {
+        // non-fatal: creation (the assertion above) is what matters
+      }
+
+      // ---- ITEM ----
+      await page.goto(`${BASE}/items`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("main").getByRole("heading", { name: "Item Master", exact: true }).waitFor({ timeout: 10000 });
+
+      const itemName = `E2E Item ${uniq()}`;
+      await page.getByPlaceholder("Item Code").fill(`EI${uniq()}`);
+      await page.getByPlaceholder("Item Name").fill(itemName);
+      await page.getByPlaceholder("Unit").fill("PCS");
+      await page.getByRole("button", { name: "Save Item" }).click();
+
+      // Find it via the search box (the table paginates at 10 rows).
+      await page.getByPlaceholder("Search...").fill(itemName);
+      await page.waitForTimeout(400);
+      const iRow = page.getByRole("row", { name: new RegExp(itemName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+      await iRow.first().waitFor({ timeout: 12000 });
+      assert((await iRow.count()) >= 1, `item "${itemName}" should appear in the table`);
+      // Note: the Item Master table has no Delete control — best-effort cleanup is a no-op.
+    } finally {
+      await ctx.close();
+    }
+  });
+
   await browser.close();
 }
 

@@ -2,6 +2,7 @@
 package com.ledger.ledgerworks.service;
 
 import com.ledger.ledgerworks.entity.*;
+import com.ledger.ledgerworks.enums.DocumentType;
 import com.ledger.ledgerworks.repository.DeliveryChallanRepository;
 
 import com.lowagie.text.*;
@@ -35,6 +36,12 @@ public class DeliveryChallanService {
     @Autowired
     private DocumentNumberService documentNumberService;
 
+    @Autowired
+    private NumberSeriesService numberSeriesService;
+
+    @Autowired
+    private FinancialYearService financialYearService;
+
     // ================= CREATE =================
 
     public DeliveryChallan create(DeliveryChallan c) {
@@ -44,30 +51,20 @@ public class DeliveryChallanService {
             throw new RuntimeException("Items required");
         }
 
-        // ================= DOCUMENT NUMBER =================
+        c.setChallanDate(LocalDate.now());
 
-        DeliveryChallan lastChallan =
-                repo.findTopByOrderByIdDesc();
+        // ================= FINANCIAL YEAR LOCK CHECK =================
 
-        String lastChallanNumber = null;
-
-        if (lastChallan != null) {
-
-            lastChallanNumber =
-                    lastChallan.getChallanNumber();
-        }
-
-        c.setChallanNumber(
-
-                documentNumberService.generateNumber(
-
-                        "DC",
-
-                        lastChallanNumber
-                )
+        financialYearService.assertOpen(
+                c.getChallanDate()
         );
 
-        c.setChallanDate(LocalDate.now());
+        // ================= DOCUMENT NUMBER =================
+        // Use admin-configured series; fall back to the legacy generator.
+
+        c.setChallanNumber(
+                nextChallanNumber()
+        );
 
         c.setStatus("ACTIVE");
 
@@ -1155,6 +1152,39 @@ public class DeliveryChallanService {
 
 
     // ================= HELPERS =================
+
+    // Prefer the admin-configured NumberSeries; if it has no row or
+    // throws, fall back to the legacy DocumentNumberService so that
+    // challan creation never fails because of numbering.
+    private String nextChallanNumber() {
+
+        try {
+
+            String number =
+                    numberSeriesService.next(DocumentType.DELIVERY_CHALLAN);
+
+            if (number != null && !number.isBlank()) {
+
+                return number;
+            }
+
+        } catch (Exception e) {
+
+            log.warn(
+                    "NumberSeries lookup failed for DELIVERY_CHALLAN; "
+                            + "falling back to legacy numbering",
+                    e
+            );
+        }
+
+        DeliveryChallan last =
+                repo.findTopByOrderByIdDesc();
+
+        return documentNumberService.generateNumber(
+                "DC",
+                last != null ? last.getChallanNumber() : null
+        );
+    }
 
     private String safeStr(String val) {
 

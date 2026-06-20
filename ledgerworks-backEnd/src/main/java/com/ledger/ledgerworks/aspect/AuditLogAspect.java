@@ -6,7 +6,12 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 
@@ -51,11 +56,51 @@ public class AuditLogAspect {
 
             String detail = method.getName() + "()";
 
-            auditLogService.record(action, entityType, detail);
+            auditLogService.record(
+                    action, entityType, detail, currentUsername(), currentRequestUri());
 
         } catch (Exception ignored) {
             // Never let auditing interfere with the actual request.
         }
+    }
+
+    // The acting account from the security context, or "anonymous"/"system".
+    private String currentUsername() {
+
+        try {
+
+            Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+
+            if (auth != null && auth.getName() != null
+                    && !auth.getName().isEmpty()) {
+                return auth.getName();
+            }
+
+            return "anonymous";
+
+        } catch (Exception ignored) {
+            return "system";
+        }
+    }
+
+    // The current HTTP request URI, when invoked inside a web request.
+    private String currentRequestUri() {
+
+        try {
+
+            RequestAttributes attributes =
+                    RequestContextHolder.getRequestAttributes();
+
+            if (attributes instanceof ServletRequestAttributes servletAttributes) {
+                return servletAttributes.getRequest().getRequestURI();
+            }
+
+        } catch (Exception ignored) {
+            // best-effort
+        }
+
+        return null;
     }
 
     // Map the HTTP-mapping annotation on the method to an audit action.

@@ -66,13 +66,27 @@ const NAV = [
     title: "Admin",
     adminOnly: true,
     links: [
+      { to: "/settings", label: "Settings" },
       { to: "/number-series", label: "Number Series" },
       { to: "/financial-years", label: "Financial Years" },
+      { to: "/gst-rates-settings", label: "GST Rates" },
       { to: "/import", label: "Data Import" },
       { to: "/audit-logs", label: "Audit Log" },
     ],
   },
 ];
+
+// Apply and persist the colour theme. Returns the theme that is now active.
+function applyTheme(theme) {
+  const next = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem("theme", next);
+  } catch (e) {
+    // Storage may be unavailable (private mode); the toggle still works.
+  }
+  return next;
+}
 
 function MainLayout() {
   const navigate = useNavigate();
@@ -83,6 +97,14 @@ function MainLayout() {
   const isAdmin = role === "ADMIN";
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [theme, setTheme] = useState(
+    () => document.documentElement.dataset.theme || "light"
+  );
+
+  const toggleTheme = () => {
+    setTheme((prev) => applyTheme(prev === "dark" ? "light" : "dark"));
+  };
 
   // Default landing
   useEffect(() => {
@@ -170,8 +192,19 @@ function MainLayout() {
           <h2 className="topbar-title">{currentTitle}</h2>
 
           <div className="topbar-user">
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              aria-label="Toggle dark mode"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? "☀" : "☾"}
+            </button>
             <span className="app-role-badge">{role}</span>
             <span className="topbar-username">{username}</span>
+            <Link to="/change-password" className="topbar-link">
+              Change Password
+            </Link>
             <button className="btn btn-danger btn-sm" onClick={handleLogout}>
               Logout
             </button>

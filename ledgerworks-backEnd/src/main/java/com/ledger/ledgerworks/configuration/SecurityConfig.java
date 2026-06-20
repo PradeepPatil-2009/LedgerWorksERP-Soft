@@ -71,6 +71,11 @@ public class SecurityConfig {
                     .requestMatchers("/api/financial-years/**").hasRole("ADMIN")
                     .requestMatchers("/api/audit-logs/**").hasRole("ADMIN")
                     .requestMatchers("/api/import/**").hasRole("ADMIN")
+                    // any authenticated user (incl. VIEWER) may change their own password
+                    .requestMatchers(HttpMethod.PUT, "/api/account/**").authenticated()
+                    // GST rate master: anyone may read active slabs; only ADMIN may modify
+                    .requestMatchers(HttpMethod.GET, "/api/gst-rates/**").authenticated()
+                    .requestMatchers("/api/gst-rates/**").hasRole("ADMIN")
                     // writes are denied to read-only VIEWER accounts
                     .requestMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "ACCOUNTANT", "USER")
                     .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyRole("ADMIN", "ACCOUNTANT", "USER")

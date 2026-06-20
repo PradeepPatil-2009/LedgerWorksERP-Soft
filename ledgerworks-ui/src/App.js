@@ -67,6 +67,10 @@ import OpeningStockPage from "./pages/OpeningStockPage";
 import AuditLogPage from "./pages/AuditLogPage";
 import ConvertInvoicePage from "./pages/ConvertInvoicePage";
 
+import ChangePasswordPage from "./pages/ChangePasswordPage";
+import SettingsPage from "./pages/SettingsPage";
+import GstRateSettingsPage from "./pages/GstRateSettingsPage";
+
 // ================= APP =================
 
 function App() {
@@ -339,6 +343,23 @@ function App() {
           <Route
             path="convert-invoice"
             element={<ConvertInvoicePage />}
+          />
+
+          {/* ACCOUNT / SETTINGS */}
+
+          <Route
+            path="change-password"
+            element={<ChangePasswordPage />}
+          />
+
+          <Route
+            path="settings"
+            element={<SettingsPage />}
+          />
+
+          <Route
+            path="gst-rates-settings"
+            element={<GstRateSettingsPage />}
           />
 
         </Route>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import API from "../api/api";
 import { useToast } from "../components/Toast";
 import { useTableControls } from "../components/useTableControls";
 import Pagination from "../components/Pagination";
@@ -9,6 +10,9 @@ export default function ItemMasterPage() {
   const toast = useToast();
 
   const [items, setItems] = useState([]);
+
+  // Configured GST slabs offered as quick-pick options for the GST % field.
+  const [gstRates, setGstRates] = useState([]);
 
   const {
     query,
@@ -41,6 +45,7 @@ export default function ItemMasterPage() {
 
   useEffect(() => {
     loadItems();
+    loadGstRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,6 +64,21 @@ export default function ItemMasterPage() {
       console.error(err);
 
       toast.error("Error loading items");
+    }
+  };
+
+  const loadGstRates = async () => {
+
+    try {
+
+      const res = await API.get("/gst-rates");
+
+      setGstRates(res.data || []);
+
+    } catch (err) {
+
+      // Non-fatal: the GST % field still works as a plain number input.
+      console.error(err);
     }
   };
 
@@ -199,7 +219,16 @@ export default function ItemMasterPage() {
           placeholder="GST %"
           value={form.gstPercent}
           onChange={handleChange}
+          list="gst-rate-options"
         />
+
+        <datalist id="gst-rate-options">
+          {gstRates.map((r) => (
+            <option key={r.id} value={r.rate}>
+              {r.label}
+            </option>
+          ))}
+        </datalist>
 
         <input
           type="number"

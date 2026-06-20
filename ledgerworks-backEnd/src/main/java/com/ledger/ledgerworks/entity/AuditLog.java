@@ -18,6 +18,15 @@ public class AuditLog {
 
     private String username;
 
+    // The acting account resolved from the security context at request time.
+    // Named to avoid the reserved word "user".
+    @Column(name = "actor")
+    private String actor;
+
+    // The HTTP request URI that triggered this audit entry.
+    @Column(name = "request_uri", length = 512)
+    private String requestUri;
+
     @Column(length = 2000)
     private String detail;
 
@@ -55,6 +64,22 @@ public class AuditLog {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getActor() {
+        return actor;
+    }
+
+    public void setActor(String actor) {
+        this.actor = actor;
+    }
+
+    public String getRequestUri() {
+        return requestUri;
+    }
+
+    public void setRequestUri(String requestUri) {
+        this.requestUri = requestUri;
     }
 
     public String getDetail() {

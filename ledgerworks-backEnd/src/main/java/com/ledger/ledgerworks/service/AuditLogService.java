@@ -21,15 +21,27 @@ public class AuditLogService {
 
     // Record an audit event. Best-effort: never throws back to the caller.
     public void record(String action, String entityType, String detail) {
+        record(action, entityType, detail, null, null);
+    }
+
+    // Record an audit event with the acting user and request URI captured by the
+    // caller. Best-effort: never throws back to the caller.
+    public void record(String action, String entityType, String detail,
+                       String actor, String requestUri) {
 
         try {
+
+            String resolvedActor =
+                    (actor != null && !actor.isEmpty()) ? actor : currentUsername();
 
             AuditLog log = new AuditLog();
 
             log.setAction(action);
             log.setEntityType(entityType);
             log.setDetail(truncate(detail));
-            log.setUsername(currentUsername());
+            log.setUsername(resolvedActor);
+            log.setActor(resolvedActor);
+            log.setRequestUri(truncateUri(requestUri));
             log.setTimestamp(LocalDateTime.now());
 
             repository.save(log);
@@ -68,6 +80,17 @@ public class AuditLogService {
 
         return value.length() > 2000
                 ? value.substring(0, 2000)
+                : value;
+    }
+
+    private String truncateUri(String value) {
+
+        if (value == null) {
+            return null;
+        }
+
+        return value.length() > 512
+                ? value.substring(0, 512)
                 : value;
     }
 }
